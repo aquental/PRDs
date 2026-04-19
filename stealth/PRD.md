@@ -1,192 +1,132 @@
-# Psi - Documento de Requisitos de Produto + Especificação Técnica (PRD v1.1 + Tech Spec)
+# Psi (Documento Técnico + PRD Consolidado v1)
 
-**Versão:** 1.2 (Atualizado com respostas do usuário)  
-**Data:** Abril 2026  
-**Stack definitivo:** SvelteKit + Supabase + Redis (Upstash)  
-**Documento gerado a partir de:** psi-prd-v1.docx + IDEA.md (IDEA.md prevalece em todos os pontos técnicos)
-
----
-
-### 0. Resumo de Atualizações (Gaps Fechados)
-
-- LLM: Interface genérica compatível com OpenAI (pode trocar de provedor depois).
-- Agenda: Tela de listagem de agendas existe; edição sempre via Google Calendar (sincronização bidirecional).
-- Exportações: Relatórios em PDF e CSV (formato mais simples possível).
-- Pagamentos: Pagar.me (flexível para futura troca).
-- Multi-usuário: Mesmo para usuário individual, criar uma “Clínica” (workspace) desde o início.
-- Dark mode: Incluído no design system desde já.
+**Versão:** Abril 2026 
+**Stack definitivo:** SvelteKit + Supabase + Redis (Upstash) + ElevenLabs (TTS)  
+**Atualizações desta versão:**  
+- Adicionadas **três interfaces** do sistema (conforme solicitação)  
+- Suporte a voz no Assistente de IA (ElevenLabs TTS)  
+- Camada de logging para chamadas de LLM e TTS  
+- Workspace “Clínica” obrigatório  
+- Dark mode nativo  
+- LLM interface genérica (OpenAI-compatible)  
 
 ---
 
 ### 1. Visão Geral
 
-#### 1.1 Resumo Executivo
-O **Psi** é uma plataforma SaaS completa para gestão de clínicas de psicologia. Centraliza cadastro de pacientes, histórico clínico, finanças, conformidade LGPD e um assistente de IA omnichannel (web + Telegram).
+Psi é uma plataforma SaaS completa para gestão de clínicas de psicologia. Oferece **três interfaces distintas** para atender psicólogos, pacientes e o operador da plataforma.
 
 **Proposta de valor:**  
-Eliminar planilhas e ferramentas fragmentadas, automatizar a burocracia e permitir que o psicólogo foque no cuidado clínico.
-
-#### 1.2 Problema
-- Cadastros dispersos
-- Histórico desestruturado
-- Visibilidade financeira limitada
-- Riscos LGPD
-- Agenda desconectada
-- IA restrita ao navegador
-
-#### 1.3 Objetivos
-1. Gestão centralizada de pacientes (contato, familiares, dados fiscais)
-2. Histórico completo de sessões
-3. Painel financeiro com projeções
-4. Dados profissionais + Clínica (workspace)
-5. Integração bidirecional Google Calendar
-6. Conformidade LGPD ativa (criptografia + indicadores visuais)
-7. Assistente IA omnichannel
-
-#### 1.4 Métricas de Sucesso
-- Ativação: ≥ 70% em < 5 min
-- Retenção D30: ≥ 60%
-- NPS: ≥ 50 em 3 meses
-- Churn mensal: < 5%
+Eliminar planilhas, automatizar burocracia, proporcionar interação por voz com IA e manter total conformidade LGPD — tudo em uma experiência multirole.
 
 ---
 
-### 2. Usuários e Personas
+### 2. Usuários e Interfaces do Sistema (Atualizado)
 
-#### 2.1 Persona Principal
-**Dra. Renata Oliveira** – 32 anos, psicóloga autônoma, atende 8–12 pacientes/semana.
+O Psi possui **três interfaces** claramente separadas:
 
-#### 2.2 Modelo de Clínica
-Mesmo para usuário individual, o sistema cria automaticamente uma **Clínica** (workspace). Isso prepara o caminho para multi-usuário futuro (admin, psicólogo, recepcionista).
+#### 2.1 Interface 1 — Psicólogo (Principal)
+- Interface web responsiva completa (SvelteKit).
+- Acesso total: cadastro de pacientes, histórico, finanças, assistente de IA com voz, configurações da clínica, Google Calendar sync.
+- Autenticação via Google OAuth + Row Level Security (RLS) por `clinic_id`.
+
+#### 2.2 Interface 2 — Paciente
+- **Sem login direto no Psi**.
+- O paciente interage exclusivamente através do **Google Calendar**.
+- O Psi cria/atualiza automaticamente eventos no calendário do psicólogo, que são visíveis no calendário do paciente (sincronização bidirecional).
+- O paciente recebe lembretes, visualiza horários confirmados e pode responder a convites diretamente no Google Calendar.
+- Nenhum dado clínico sensível é exposto ao paciente.
+
+#### 2.3 Interface 3 — Admin / Operador da Plataforma
+- Interface administrativa interna (acesso restrito ao operador do serviço).
+- Permite visualizar:
+  - Logs completos de uso de IA e TTS (`ai_usage_logs`)
+  - Relatórios financeiros da plataforma (receita por plano, churn, MRR, etc.)
+  - Status geral dos tenants (clínicas)
+  - Auditoria LGPD e métricas de uso
+- Acesso via role `admin` no Supabase Auth (separado do RLS dos psicólogos).
+
+**Persona Principal (Psicólogo):** Dra. Renata Oliveira  
+**Persona Secundária (Paciente):** Paciente final que só interage via Google Calendar  
+**Usuário Interno (Admin):** Operador da Psi (você)
 
 ---
 
-### 3. Funcionalidades do Produto
-
-#### 3.1 Autenticação e Integrações
-- Login exclusivo com Google (Supabase Auth)
-- Integração Google Calendar (v1.2): sincronização bidirecional completa
-
-#### 3.2 Gestão de Pacientes
-- Nome, telefone, endereço, e-mail, status, data de início
-- Contatos familiares (JSONB)
-- Dados fiscais completos
-
-#### 3.3 Histórico do Paciente
-- Sessões mensais, frequência, valor, totais automáticos
-
-#### 3.4 Finanças
-- Receita, custos editáveis, lucro, projeção anual
-- Gráficos e tabelas
-
-#### 3.5 Configurações
-- Dados do psicólogo + **Clínica** (nome, logo, configurações compartilhadas)
+### 3. Funcionalidades do Produto (Atualizado)
 
 #### 3.6 Assistente de IA
-- Interface genérica compatível com OpenAI (fácil troca de LLM no futuro)
-- Contexto dinâmico de pacientes e finanças
-- Omnichannel (web ↔ Telegram)
+- Chat em tempo real com contexto dinâmico.
+- **Modo Voz** completo: Speech-to-Text + ElevenLabs TTS (resposta falada).
+- Logging de todas as chamadas (LLM e TTS).
 
-#### 3.7 LGPD e Privacidade
-- Criptografia AES-256-GCM em colunas sensíveis (`pgcrypto` + Supabase Vault)
-- Indicadores visuais (cadeado verde, badge “Criptografado”)
-- Termo de consentimento (PDF), portabilidade (JSON/CSV), direito ao esquecimento
+#### 3.9 Interfaces do Sistema
+- Interface Psicólogo: web responsiva completa.
+- Interface Paciente: Google Calendar (somente visualização e interação via eventos).
+- Interface Admin: dashboard interno com logs e relatórios financeiros.
 
-#### 3.8 Omnichannel – Telegram
-- Vinculação via QR Code + OTP
-- Sessão compartilhada (histórico de 7 dias)
-- Comandos rápidos e notificações
-
-#### 3.9 Agenda (Nova)
-- Tela dedicada de listagem de agendas (mesclando sessões do Psi + eventos do Google Calendar)
-- Edição e criação de sessões sempre feita no Google Calendar (sincronização automática)
-
-#### 3.10 Exportações
-- Relatórios financeiros, histórico de pacientes e termos de consentimento em **PDF** e **CSV** (geração mais simples possível)
+#### 3.11 Logging de Uso de IA e TTS
+- Tabela `ai_usage_logs` para monitoramento de custos.
+- Disponível tanto para o psicólogo (relatório pessoal) quanto para o Admin (relatório global da plataforma).
 
 ---
 
-### 4. Requisitos por Prioridade (Status MVP)
+### 4. Requisitos por Prioridade (Atualizado)
 
-| Funcionalidade                        | Prioridade | Status MVP | Versão |
-|---------------------------------------|------------|------------|--------|
-| Login Google + Clínica (workspace)    | Alta       | Incluído   | v1.0   |
-| Cadastro de pacientes + NF            | Alta       | Incluído   | v1.0   |
-| Histórico e finanças                  | Alta       | Incluído   | v1.0   |
-| LGPD completa                         | Alta       | Incluído   | v1.1   |
-| Assistente IA (genérico OpenAI)       | Média      | Incluído   | v1.0   |
-| Google Calendar + tela de agendas     | Alta       | Roadmap    | v1.2   |
-| Bot Telegram                          | Média      | Roadmap    | v1.2   |
-| Exportações PDF/CSV                   | Média      | Roadmap    | v1.3   |
+| Funcionalidade                              | Prioridade | Status MVP | Versão |
+|---------------------------------------------|------------|------------|--------|
+| Interface Psicólogo (web responsiva)        | Alta       | Incluído   | v1.0   |
+| Interface Paciente (via Google Calendar)    | Alta       | Incluído   | v1.2   |
+| Interface Admin (logs + relatórios)         | Alta       | Incluído   | v1.1   |
+| Assistente IA com voz (ElevenLabs)          | Alta       | Incluído   | v1.1   |
+| Workspace Clínica (obrigatório)             | Alta       | Incluído   | v1.0   |
 
 ---
 
-### 5. Requisitos Não Funcionais
-- Dark mode nativo desde o início
-- Responsivo (desktop, tablet, celular)
-- Performance: LCP < 2s, APIs < 300 ms
-- Segurança: RLS + criptografia + HTTPS/TLS 1.3
+### 7. Arquitetura Técnica (Atualizado)
+
+**Roles e Permissões (Supabase Auth + RLS)**
+- `psychologist` → RLS por `clinic_id`
+- `patient` → sem acesso direto (somente Google Calendar)
+- `admin` → role global com acesso total a logs e relatórios
+
+**Nova tabela para suporte ao Admin:**
+```sql
+CREATE TABLE platform_reports (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    report_type TEXT NOT NULL,        -- 'revenue', 'ai_usage', 'churn', etc.
+    data JSONB NOT NULL,
+    generated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**Componentes de interface:**
+- Rotas protegidas: `/app/*` → Psicólogo
+- Rotas admin: `/admin/*` → protegidas por role `admin`
+- Google Calendar: sincronização via server actions (sem interface dedicada para paciente)
+
+**Dark mode:** Nativo em todas as interfaces.
 
 ---
 
-### 6. Modelo de Monetização
-**Freemium** (Pagar.me como gateway atual – configuração flexível para troca futura)
+### 8. Plano de Implementação (Atualizado)
 
-| Funcionalidade               | Free          | Pro (R$ 79/mês) | Clínica (R$ 199/mês) |
-|------------------------------|---------------|-----------------|----------------------|
-| Pacientes ativos             | Até 5         | Ilimitado       | Ilimitado            |
-| Histórico                    | 6 meses       | Ilimitado       | Ilimitado            |
-| Google Calendar + Telegram   | —             | Incluído        | Incluído             |
-| Assistente IA                | 50 msgs/mês   | Ilimitado       | Ilimitado            |
-| Suporte                      | Comunidade    | E-mail          | Prioritário          |
-
-- Trial 14 dias sem cartão
-- Upsell automático no 6º paciente
+1. Workspace “Clínica” + roles (psychologist / admin)
+2. Interface Psicólogo completa
+3. Interface Admin (logs + relatórios financeiros)
+4. Integração ElevenLabs TTS + logging
+5. Sincronização bidirecional Google Calendar (Interface Paciente)
+6. Dark mode + exportações PDF/CSV
+7. Testes de RLS por role
+8. Deploy na Vercel
 
 ---
 
-### 7. Arquitetura Técnica (IDEA.md atualizado)
+**Observação final:**  
+O sistema agora tem **três interfaces** claramente definidas:  
+1. Psicólogo → web responsiva completa  
+2. Paciente → Google Calendar (atualização automática)  
+3. Admin/Operador → dashboard interno de logs e relatórios financeiros  
 
-**Stack**
-- **Full-stack:** SvelteKit
-- **Banco:** Supabase (PostgreSQL + Auth + Realtime + Storage + Vault)
-- **Cache/Omnichannel:** Redis (Upstash)
-- **Design:** Tema earthy + **Dark mode** (cores claras e escuras)
-- **LLM:** Interface genérica OpenAI-compatible
-- **Pagamentos:** Pagar.me (configurável)
-- **Exportações:** PDF/CSV (bibliotecas leves no server-side)
+Essa estrutura mantém o foco no psicólogo como usuário principal, mas já prepara a plataforma para operação escalável e monetização.
 
-**Estrutura de pastas** (mantida do IDEA.md com adições):
-- `src/routes/(auth)/agenda/` → nova rota de listagem
-- `src/lib/clinic.ts` → lógica de workspace
-- `src/lib/llm.ts` → interface genérica OpenAI
-
-**Dark mode no design**
-- Fundo claro: `#FDFBF7` / escuro: `#1A1A1A`
-- Primária: `#5B7B7A` (mantida)
-- Secundária: `#D4A373` (mantida)
-- Suporte via `class="dark"` no `<html>` e Tailwind/Svelte
-
----
-
-### 8. Roadmap de Produto (Atualizado)
-
-- **v1.1** — LGPD + Dark mode + workspace Clínica (concluído)
-- **v1.2** — Google Calendar + tela de agendas + Telegram
-- **v1.3** — Exportações PDF/CSV + agenda própria (fallback)
-- **v2.0** — Prontuário eletrônico + multi-usuário completo
-
----
-
-**Documento final consolidado.**  
-Tudo que estava no PRD original foi mantido. Tudo que estava no IDEA.md (mais recente) prevaleceu. Todas as suas respostas de hoje foram incorporadas.
-
-**Próximos passos que posso gerar agora:**
-1. Schema SQL completo com `clinics` / workspaces + RLS atualizado
-2. Código de exemplo da tela de Agenda
-3. Interface LLM genérica (arquivo `lib/llm.ts`)
-4. Configuração Pagar.me flexível
-5. Componentes de Dark mode
-
-É só dizer qual quer primeiro!  
-Quer que eu gere o arquivo **IDEA3.md** com tudo isso pronto para download?
+**Documento gerado em Abril/2026.**  
