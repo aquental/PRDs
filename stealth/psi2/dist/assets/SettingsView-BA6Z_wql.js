@@ -1,1 +1,0 @@
-import{b as e,r as t,j as o}from"./index-CgFGefFX.js";function x(){const{psychologist:s,updatePsychologist:a}=e(),[i,n]=t.useState(!1),[r,d]=t.useState({...s}),[c,p]=t.useState(!1);return o.jsx("div",{style:{padding:"32px 40px",maxWidth:720}})}export{x as default};

@@ -1,5 +1,15 @@
 import { C } from "../../constants/designTokens";
 
+type FieldProps = {
+  label: string;
+  value: string | number | undefined;
+  editing: boolean;
+  onChange: (value: string) => void;
+  full?: boolean;
+  type?: string;
+  rows?: number;
+};
+
 export default function Field({
   label,
   value,
@@ -8,7 +18,7 @@ export default function Field({
   full,
   type = "text",
   rows,
-}) {
+}: FieldProps) {
   return (
     <div style={{ gridColumn: full ? "1 / -1" : "auto" }}>
       <label

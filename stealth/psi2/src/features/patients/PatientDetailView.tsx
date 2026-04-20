@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { usePatientsStore } from "../../store/usePatientsStore";
+import { usePatientsStore, type Patient } from "../../store/usePatientsStore";
 import { C } from "../../constants/designTokens";
 import { fmt } from "../../lib/utils";
 import Avatar from "../../components/common/Avatar";
@@ -17,7 +17,7 @@ export default function PatientDetailView() {
 
   const [tab, setTab] = useState("info");
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState(patient || {});
+  const [form, setForm] = useState<Partial<Patient>>(patient || {});
   const [showFamilyModal, setShowFamilyModal] = useState(false);
   const [famForm, setFamForm] = useState({ name: "", relation: "", phone: "", email: "" });
 
@@ -35,7 +35,12 @@ export default function PatientDetailView() {
   }));
 
   const save = () => {
-    updatePatient({ ...form, sessionsPerMonth: +form.sessionsPerMonth, valuePerSession: +form.valuePerSession });
+    updatePatient({
+      ...patient,
+      ...form,
+      sessionsPerMonth: Number(form.sessionsPerMonth ?? patient.sessionsPerMonth),
+      valuePerSession: Number(form.valuePerSession ?? patient.valuePerSession),
+    } as Patient);
     setEditing(false);
   };
 
@@ -96,8 +101,8 @@ export default function PatientDetailView() {
             <Field label="Telefone" value={editing ? form.phone : patient.phone} editing={editing} onChange={v => setForm(p => ({ ...p, phone: v }))} />
             <Field label="Email" value={editing ? form.email : patient.email} editing={editing} onChange={v => setForm(p => ({ ...p, email: v }))} />
             <Field label="Endereço" value={editing ? form.address : patient.address} editing={editing} onChange={v => setForm(p => ({ ...p, address: v }))} full />
-            <Field label="Sessões por mês" value={editing ? form.sessionsPerMonth : patient.sessionsPerMonth} editing={editing} onChange={v => setForm(p => ({ ...p, sessionsPerMonth: v }))} type="number" />
-            <Field label="Valor por sessão (R$)" value={editing ? form.valuePerSession : patient.valuePerSession} editing={editing} onChange={v => setForm(p => ({ ...p, valuePerSession: v }))} type="number" />
+            <Field label="Sessões por mês" value={editing ? form.sessionsPerMonth : patient.sessionsPerMonth} editing={editing} onChange={v => setForm(p => ({ ...p, sessionsPerMonth: Number(v) }))} type="number" />
+            <Field label="Valor por sessão (R$)" value={editing ? form.valuePerSession : patient.valuePerSession} editing={editing} onChange={v => setForm(p => ({ ...p, valuePerSession: Number(v) }))} type="number" />
           </div>
           <div style={{ marginTop: 18 }}>
             <Field label="Observações clínicas" value={editing ? form.notes : patient.notes} editing={editing} onChange={v => setForm(p => ({ ...p, notes: v }))} full rows={3} />

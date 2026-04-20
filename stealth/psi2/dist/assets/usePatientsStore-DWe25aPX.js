@@ -1,0 +1,1 @@
+import{c as s,I as p}from"./index-CkHNdsLQ.js";const o=s((e,n)=>({patients:p,setPatients:t=>e({patients:t}),updatePatient:t=>e(a=>({patients:a.patients.map(i=>i.id===t.id?t:i)})),addPatient:t=>e(a=>({patients:[...a.patients,{...t,id:Date.now()}]})),getPatientById:t=>n().patients.find(a=>a.id===t)}));export{o as u};
