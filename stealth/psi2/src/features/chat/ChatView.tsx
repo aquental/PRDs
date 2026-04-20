@@ -3,12 +3,14 @@ import { usePatientsStore } from "../../store/usePatientsStore";
 import { C } from "../../constants/designTokens";
 import { monthlyRevenue } from "../../lib/utils";
 
+type Message = { role: "assistant" | "user"; content: string };
+
 export default function ChatView() {
     const { patients } = usePatientsStore();
-    const [messages, setMessages] = useState([{ role: "assistant", content: "Olá! Sou o assistente Psi 👋\n\nPosso te ajudar com análises dos seus pacientes..." }]);
-    const [input, setInput] = useState("");
-    const [loading, setLoading] = useState(false);
-    const endRef = useRef(null);
+    const [messages, setMessages] = useState<Message[]>([{ role: "assistant", content: "Olá! Sou o assistente Psi 👋\n\nPosso te ajudar com análises dos seus pacientes..." }]);
+    const [input, setInput] = useState<string>("");
+    const [loading, setLoading] = useState<boolean>(false);
+    const endRef = useRef<HTMLDivElement>(null);
 
     // systemPrompt (same as original)
     const systemPrompt = `Você é o assistente inteligente da plataforma Psi...`; // full prompt from original
