@@ -1,0 +1,32 @@
+export const C = {
+  sidebar: "#12433A",
+  sidebarActive: "rgba(255,255,255,0.15)",
+  sidebarHover: "rgba(255,255,255,0.08)",
+  primary: "#1B6B57",
+  primaryHover: "#155044",
+  primaryLight: "#E6F4F0",
+  accent: "#CF7A52",
+  accentLight: "#FBF0E8",
+  bg: "#F4F2ED",
+  surface: "#FFFFFF",
+  text: "#1A1917",
+  muted: "#706C66",
+  mutedLight: "#A59F99",
+  border: "#E4E0D8",
+  borderLight: "#EEEBE5",
+  successBg: "#F0FDF5",
+  success: "#16A34A",
+  dangerBg: "#FEF2F2",
+  danger: "#DC2626",
+};
+
+export const AVATAR_COLORS = [
+  "#1B6B57",
+  "#2563EB",
+  "#7C3AED",
+  "#DC2626",
+  "#D97706",
+  "#0891B2",
+  "#DB2777",
+  "#059669",
+];
