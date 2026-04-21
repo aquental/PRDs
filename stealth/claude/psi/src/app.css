@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	:root {
+		color-scheme: light;
+	}
+	.dark {
+		color-scheme: dark;
+	}
+
+	html {
+		font-family: 'Figtree', system-ui, sans-serif;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+	}
+
+	h1, h2, h3, h4, h5, h6 {
+		font-family: 'Manrope', system-ui, sans-serif;
+		letter-spacing: -0.015em;
+	}
+
+	body {
+		@apply bg-bg text-ink dark:bg-bg-dark dark:text-bg;
+	}
+
+	/* Focus ring consistente para acessibilidade. */
+	:where(a, button, input, textarea, select):focus-visible {
+		@apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-bg dark:ring-offset-bg-dark;
+	}
+}
+
+@layer components {
+	.surface {
+		@apply bg-white dark:bg-[#25211D] border border-primary-100/60 dark:border-white/5 rounded-xl;
+	}
+	.btn {
+		@apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-medium transition;
+	}
+	.btn-primary {
+		@apply bg-primary text-white hover:bg-primary-600 active:bg-primary-700 disabled:opacity-60;
+	}
+	.btn-secondary {
+		@apply bg-secondary text-white hover:bg-secondary-600;
+	}
+	.btn-ghost {
+		@apply text-ink hover:bg-primary-50 dark:text-bg dark:hover:bg-white/5;
+	}
+	.input {
+		@apply w-full rounded-xl bg-white dark:bg-[#25211D] border border-primary-100/80 dark:border-white/10 px-3.5 py-2.5 outline-none focus:border-primary;
+	}
+	.label {
+		@apply block text-sm font-medium text-ink-muted mb-1.5;
+	}
+}

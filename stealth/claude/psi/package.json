@@ -1,0 +1,55 @@
+{
+  "name": "psi",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Plataforma SaaS para clínicas de psicologia — SvelteKit 2 + Svelte 5 (Runes) + Supabase + Redis + ElevenLabs",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "lint": "prettier --check . && eslint .",
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "db:migrate": "supabase db push",
+    "db:reset": "supabase db reset",
+    "admin:promote": "node ./scripts/promote-admin.js"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.45.0",
+    "@upstash/redis": "^1.34.0",
+    "@upstash/ratelimit": "^2.0.3",
+    "phosphor-svelte": "^3.0.0",
+    "pino": "^9.5.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-vercel": "^5.5.0",
+    "@sveltejs/kit": "^2.8.0",
+    "@sveltejs/vite-plugin-svelte": "^4.0.0",
+    "@types/node": "^22.0.0",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.12.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-svelte": "^2.44.0",
+    "postcss": "^8.4.47",
+    "prettier": "^3.3.3",
+    "prettier-plugin-svelte": "^3.2.6",
+    "prettier-plugin-tailwindcss": "^0.6.8",
+    "svelte": "^5.1.0",
+    "svelte-check": "^4.0.0",
+    "tailwindcss": "^3.4.14",
+    "tslib": "^2.7.0",
+    "typescript": "^5.6.0",
+    "vite": "^5.4.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
