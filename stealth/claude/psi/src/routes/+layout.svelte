@@ -4,6 +4,7 @@
 	import { invalidate } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabase/client';
+	import favicon from '$lib/assets/favicon.png';
 
 	interface Props {
 		data: { session: import('@supabase/supabase-js').Session | null };
@@ -22,5 +23,9 @@
 		return () => subscription.unsubscribe();
 	});
 </script>
+
+<svelte:head>
+	<link rel="icon" href={favicon} type="image/png" />
+</svelte:head>
 
 {@render children()}

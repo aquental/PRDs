@@ -31,16 +31,18 @@
 	let sessions_per_month = $state('4');
 </script>
 
-<div class="space-y-6">
-	<header class="flex items-center justify-between">
+<div class="space-y-8">
+	<div class="flex items-start justify-between border-b border-primary-100/40 pb-6 dark:border-white/5">
 		<div>
-			<h1 class="font-heading text-3xl font-bold">Pacientes</h1>
-			<p class="text-ink-muted">{data.patients.length} no total</p>
+			<h1 class="font-heading text-2xl font-bold text-ink dark:text-bg">Pacientes</h1>
+			<p class="mt-1 text-sm text-ink-muted">
+				{data.patients.length} {data.patients.length === 1 ? 'paciente' : 'pacientes'} cadastrados
+			</p>
 		</div>
 		<Button data-testid="btn-new-patient" onclick={() => (showForm = !showForm)}>
-			<Plus size={18} weight="bold" /> Novo paciente
+			<Plus size={16} weight="bold" /> Novo paciente
 		</Button>
-	</header>
+	</div>
 
 	{#if showForm}
 		<Card title="Cadastrar paciente">
@@ -83,13 +85,13 @@
 					data-testid="inp-gcal-email"
 				/>
 
-				<div class="sm:col-span-2 flex gap-2 justify-end">
+				<div class="flex justify-end gap-2 sm:col-span-2">
 					<Button variant="ghost" onclick={() => (showForm = false)}>Cancelar</Button>
 					<Button type="submit" data-testid="btn-save-patient">Salvar</Button>
 				</div>
 
 				{#if form?.error}
-					<p class="sm:col-span-2 text-sm text-red-600">
+					<p class="text-sm text-red-600 sm:col-span-2">
 						{Object.values(form.error).flat().join(' · ')}
 					</p>
 				{/if}
@@ -98,17 +100,17 @@
 	{/if}
 
 	<Card>
-		<form class="mb-4 flex gap-2" method="GET">
+		<form class="mb-5 flex gap-2" method="GET">
 			<div class="relative flex-1">
 				<MagnifyingGlass
-					size={18}
+					size={16}
 					class="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted"
 				/>
 				<input
 					name="q"
 					value={data.query}
 					placeholder="Buscar por nome"
-					class="input pl-10"
+					class="input pl-9 text-sm"
 					data-testid="inp-search"
 				/>
 			</div>
@@ -120,29 +122,31 @@
 		{:else}
 			<div class="overflow-x-auto">
 				<table class="w-full text-left text-sm" data-testid="tbl-patients">
-					<thead class="text-xs uppercase text-ink-muted">
-						<tr>
-							<th class="py-2">Nome</th>
-							<th>Contato</th>
-							<th>Frequência</th>
-							<th class="text-right">Valor</th>
+					<thead>
+						<tr class="border-b border-primary-100/60 dark:border-white/5">
+							<th class="pb-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Nome</th>
+							<th class="pb-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Contato</th>
+							<th class="pb-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Freq./mês</th>
+							<th class="pb-3 text-right text-[11px] font-medium uppercase tracking-wide text-ink-muted">Valor</th>
 						</tr>
 					</thead>
-					<tbody>
+					<tbody class="divide-y divide-primary-100/40 dark:divide-white/5">
 						{#each data.patients as p (p.id)}
-							<tr class="border-t border-primary-100/40 dark:border-white/5">
-								<td class="py-3 font-medium">
-									<a href="/app/patients/{p.id}" class="hover:text-primary">{p.name}</a>
-									{#if !p.active}
-										<span class="ml-2 rounded bg-primary-50 px-1.5 py-0.5 text-xs">inativo</span>
-									{/if}
+							<tr>
+								<td class="py-3.5">
+									<div class="flex items-center gap-2">
+										<a href="/app/patients/{p.id}" class="font-medium hover:text-primary">{p.name}</a>
+										{#if !p.active}
+											<span class="rounded-full bg-primary-50 px-2 py-0.5 text-xs text-ink-muted dark:bg-white/5">inativo</span>
+										{/if}
+									</div>
 								</td>
-								<td>
-									{#if p.email}<div>{p.email}</div>{/if}
-									{#if p.phone}<div class="text-ink-muted">{formatPhone(p.phone)}</div>{/if}
+								<td class="py-3.5">
+									{#if p.email}<div class="text-ink">{p.email}</div>{/if}
+									{#if p.phone}<div class="text-xs text-ink-muted">{formatPhone(p.phone)}</div>{/if}
 								</td>
-								<td>{p.sessions_per_month}/mês</td>
-								<td class="text-right tabular-nums">{formatBRL(p.session_fee)}</td>
+								<td class="py-3.5 text-ink-muted">{p.sessions_per_month}×</td>
+								<td class="py-3.5 text-right tabular-nums font-medium">{formatBRL(p.session_fee)}</td>
 							</tr>
 						{/each}
 					</tbody>

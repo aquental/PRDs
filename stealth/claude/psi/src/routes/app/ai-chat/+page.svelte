@@ -66,7 +66,7 @@
 		} catch (err) {
 			messages = [
 				...messages,
-				{ role: 'assistant', content: `⚠️ Erro: ${err instanceof Error ? err.message : 'desconhecido'}` }
+				{ role: 'assistant', content: `Erro: ${err instanceof Error ? err.message : 'desconhecido'}` }
 			];
 		} finally {
 			sending = false;
@@ -81,45 +81,62 @@
 	}
 </script>
 
-<div class="space-y-6">
-	<header class="flex items-center justify-between">
+<div class="space-y-8">
+	<div class="flex items-start justify-between border-b border-primary-100/40 pb-6 dark:border-white/5">
 		<div>
-			<h1 class="font-heading text-3xl font-bold">Assistente IA</h1>
-			<p class="text-ink-muted">Converse com a IA — com ou sem voz.</p>
+			<h1 class="font-heading text-2xl font-bold text-ink dark:text-bg">Assistente IA</h1>
+			<p class="mt-1 text-sm text-ink-muted">Converse com a IA — com ou sem voz.</p>
 		</div>
 		{#if data.features.voice}
-			<Button
-				variant="ghost"
+			<button
 				onclick={() => (voiceOn = !voiceOn)}
 				data-testid="btn-toggle-voice"
+				class="flex items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-medium transition
+					{voiceOn
+					? 'border-primary-200 bg-primary-50 text-primary dark:border-primary-700 dark:bg-primary-900/40 dark:text-primary-200'
+					: 'border-primary-100/60 text-ink-muted hover:border-primary-200 dark:border-white/10 dark:text-bg/60'}"
 			>
 				{#if voiceOn}
-					<SpeakerHigh size={18} /> Voz ativa
+					<SpeakerHigh size={16} weight="fill" /> Voz ativa
 				{:else}
-					<SpeakerSlash size={18} /> Voz desligada
+					<SpeakerSlash size={16} /> Voz desligada
 				{/if}
-			</Button>
+			</button>
 		{/if}
-	</header>
+	</div>
 
-	<Card class="flex flex-col min-h-[60vh]">
-		<div class="flex-1 space-y-3 overflow-y-auto p-2" data-testid="chat-messages">
+	<section class="surface flex min-h-[60vh] flex-col p-5">
+		<div class="flex-1 space-y-4 overflow-y-auto" data-testid="chat-messages">
 			{#if messages.length === 0}
-				<p class="py-12 text-center text-ink-muted">
-					Comece uma conversa — por exemplo, "como organizar minha agenda desta semana?"
-				</p>
+				<div class="flex h-full flex-col items-center justify-center py-16 text-center">
+					<p class="text-sm text-ink-muted">
+						Comece uma conversa — por exemplo,<br />
+						<span class="mt-1 block font-medium text-ink dark:text-bg">"como organizar minha agenda desta semana?"</span>
+					</p>
+				</div>
 			{/if}
 			{#each messages as m, i (i)}
 				<div class={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
 					<div
-						class="max-w-[80%] rounded-xl px-4 py-2.5 {m.role === 'user'
-							? 'bg-primary text-white'
-							: 'bg-primary-50 dark:bg-white/5'}"
+						class="max-w-[78%] rounded-2xl px-4 py-3 {m.role === 'user'
+							? 'rounded-br-sm bg-primary text-white'
+							: 'rounded-bl-sm bg-primary-50 text-ink dark:bg-white/5 dark:text-bg'}"
 					>
-						<p class="whitespace-pre-wrap text-sm">{m.content}</p>
+						<p class="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</p>
 					</div>
 				</div>
 			{/each}
+			{#if sending}
+				<div class="flex justify-start">
+					<div class="rounded-2xl rounded-bl-sm bg-primary-50 px-4 py-3 dark:bg-white/5">
+						<span class="flex gap-1">
+							<span class="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-muted [animation-delay:0ms]"></span>
+							<span class="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-muted [animation-delay:150ms]"></span>
+							<span class="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-muted [animation-delay:300ms]"></span>
+						</span>
+					</div>
+				</div>
+			{/if}
 		</div>
 
 		<form
@@ -127,21 +144,21 @@
 				e.preventDefault();
 				send();
 			}}
-			class="mt-4 flex gap-2 border-t border-primary-100/40 dark:border-white/5 pt-4"
+			class="mt-4 flex gap-2 border-t border-primary-100/40 pt-4 dark:border-white/5"
 		>
 			<textarea
 				bind:value={input}
 				onkeydown={onKey}
 				placeholder="Escreva sua mensagem…"
 				rows="2"
-				class="input resize-none"
+				class="input resize-none text-sm"
 				data-testid="inp-chat"
 			></textarea>
 			<Button type="submit" disabled={!canSend} loading={sending} data-testid="btn-send">
-				<PaperPlaneTilt size={18} />
+				<PaperPlaneTilt size={16} weight="fill" />
 			</Button>
 		</form>
-	</Card>
-
-	<audio bind:this={audioEl} class="hidden" controls></audio>
+	</section>
 </div>
+
+<audio bind:this={audioEl} class="hidden" controls></audio>
