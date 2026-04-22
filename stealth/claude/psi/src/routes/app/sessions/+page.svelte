@@ -4,7 +4,7 @@
 	import Input from '$lib/ui/Input.svelte';
 	import { enhance } from '$app/forms';
 	import { formatBRL, formatDateTime } from '$lib/utils/format';
-	import { Plus } from 'phosphor-svelte';
+	import { Plus, Trash, CheckCircle } from 'phosphor-svelte';
 
 	interface Row {
 		id: string;
@@ -29,12 +29,42 @@
 	}
 	interface Props {
 		data: { sessions: Row[]; patients: Patient[]; schedules: Schedule[]; workingHoursStart: number; workingHoursEnd: number };
-		form: { error?: unknown; success?: boolean } | null;
+		form: { error?: unknown; success?: boolean; action?: string } | null;
 	}
 	let { data, form }: Props = $props();
 
+	// ── Error formatting ──────────────────────────────────────
+	function formatFormError(err: unknown): string {
+		if (typeof err === 'string') return err;
+		if (err && typeof err === 'object') {
+			const entries = Object.entries(err as Record<string, string[]>);
+			if (entries.length > 0)
+				return entries.map(([f, msgs]) => `${f}: ${msgs.join(', ')}`).join(' · ');
+		}
+		return 'Erro inesperado. Tente novamente.';
+	}
+
+	// ── Toast ─────────────────────────────────────────────────
+	let toast = $state<string | null>(null);
+	let toastTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function showToast(msg: string) {
+		if (toastTimer) clearTimeout(toastTimer);
+		toast = msg;
+		toastTimer = setTimeout(() => (toast = null), 3500);
+	}
+
+	$effect(() => {
+		if (form?.success) {
+			if (form.action === 'markPaid') showToast('Sessão marcada como paga.');
+			else if (form.action === 'deleteSchedule') showToast('Horário removido.');
+			else showToast('Horário salvo com sucesso.');
+		}
+	});
+
 	// ── Form state ────────────────────────────────────────────
 	let showForm = $state(false);
+	let saving = $state(false);
 	let patientId = $state('');
 	let dayOfWeek = $state('1');
 	let startTime = $state('08:00');
@@ -79,6 +109,17 @@
 	const freqLabel: Record<string, string> = { weekly: 'Semanal', biweekly: 'Quinzenal' };
 </script>
 
+<!-- Toast -->
+{#if toast}
+	<div
+		class="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-ink px-5 py-3 text-sm font-medium text-bg shadow-lg"
+		role="status"
+		aria-live="polite"
+	>
+		{toast}
+	</div>
+{/if}
+
 <div class="space-y-8">
 	<!-- Header -->
 	<div class="flex items-start justify-between border-b border-primary-100/40 pb-6 dark:border-white/5">
@@ -97,13 +138,13 @@
 			<form
 				method="POST"
 				action="?/createSchedule"
-				use:enhance={() => async ({ update }) => {
-					await update();
-					if (!form?.error) {
-						showForm = false;
-						patientId = ''; dayOfWeek = '1'; startTime = '08:00';
-						duration = '50'; frequency = 'weekly'; fee = '';
-					}
+				use:enhance={() => {
+					saving = true;
+					return async ({ update }) => {
+						await update();
+						saving = false;
+						if (!form?.error) showForm = false;
+					};
 				}}
 				class="grid gap-4 sm:grid-cols-2"
 			>
@@ -157,17 +198,15 @@
 				</div>
 
 				<!-- Valor -->
-				<Input label="Valor (R$)" name="fee" type="number" bind:value={fee} />
+				<Input label="Valor da sessão (R$)" name="fee" type="number" bind:value={fee} />
 
 				<div class="flex justify-end gap-2 sm:col-span-2">
 					<Button variant="ghost" onclick={() => (showForm = false)}>Cancelar</Button>
-					<Button type="submit" data-testid="btn-save-schedule">Salvar</Button>
+					<Button type="submit" loading={saving} data-testid="btn-save-schedule">Salvar</Button>
 				</div>
 
-				{#if form?.error}
-					<p class="text-sm text-red-600 sm:col-span-2">
-						{typeof form.error === 'string' ? form.error : JSON.stringify(form.error)}
-					</p>
+				{#if form?.error && !form?.action}
+					<p class="text-sm text-red-600 sm:col-span-2">{formatFormError(form.error)}</p>
 				{/if}
 			</form>
 		</Card>
@@ -202,13 +241,29 @@
 										{@const slot = slotAt(di + 1, hour)}
 										<td class="px-1 py-1.5">
 											{#if slot}
-												<div class="rounded-lg bg-primary-100 px-2 py-2 dark:bg-primary-900/40">
-													<p class="font-semibold text-primary-700 dark:text-primary-200 truncate">
+												<div class="group relative rounded-lg bg-primary-100 px-2 py-2 dark:bg-primary-900/40">
+													<p class="truncate font-semibold text-primary-700 dark:text-primary-200">
 														{slot.patients?.name ?? '—'}
 													</p>
 													<p class="mt-0.5 text-[10px] text-ink-muted">
 														{freqLabel[slot.frequency]} · {slot.duration_minutes} min
 													</p>
+													<form
+														method="POST"
+														action="?/deleteSchedule"
+														use:enhance={() => async ({ update }) => { await update(); }}
+														class="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity"
+													>
+														<input type="hidden" name="schedule_id" value={slot.id} />
+														<button
+															type="submit"
+															class="rounded p-0.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"
+															title="Remover horário"
+															aria-label="Remover horário de {slot.patients?.name}"
+														>
+															<Trash size={12} weight="bold" />
+														</button>
+													</form>
 												</div>
 											{/if}
 										</td>
@@ -235,8 +290,8 @@
 							<th class="pb-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Paciente</th>
 							<th class="pb-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Duração</th>
 							<th class="pb-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Status</th>
-							<th class="pb-3 text-right text-[11px] font-medium uppercase tracking-wide text-ink-muted">Valor</th>
-							<th class="pb-3 text-right text-[11px] font-medium uppercase tracking-wide text-ink-muted">Pago</th>
+							<th class="pb-3 text-right text-[11px] font-medium uppercase tracking-wide text-ink-muted">Valor da sessão</th>
+							<th class="pb-3 text-right text-[11px] font-medium uppercase tracking-wide text-ink-muted">Pagamento</th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-primary-100/40 dark:divide-white/5">
@@ -254,12 +309,29 @@
 										{statusLabel[s.status] ?? s.status}
 									</span>
 								</td>
-								<td class="py-3.5 text-right tabular-nums font-medium">{formatBRL(s.fee)}</td>
+								<td class="py-3.5 text-right tabular-nums font-medium">{formatBRL(s.fee ?? 0)}</td>
 								<td class="py-3.5 text-right">
 									{#if s.paid}
 										<span class="inline-flex rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">Pago</span>
+									{:else if s.status === 'completed'}
+										<form
+											method="POST"
+											action="?/markPaid"
+											use:enhance={() => async ({ update }) => { await update(); }}
+											class="inline"
+										>
+											<input type="hidden" name="session_id" value={s.id} />
+											<button
+												type="submit"
+												class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50"
+												title="Marcar como pago"
+											>
+												<CheckCircle size={12} weight="bold" />
+												Marcar como pago
+											</button>
+										</form>
 									{:else}
-										<span class="text-xs text-ink-muted">—</span>
+										<span class="text-xs text-ink-muted">Pendente</span>
 									{/if}
 								</td>
 							</tr>
