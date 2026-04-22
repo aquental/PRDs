@@ -12,17 +12,22 @@
 -- ---------------------------------------------------------------------------
 -- Extensions
 -- ---------------------------------------------------------------------------
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ---------------------------------------------------------------------------
 -- Enums
 -- ---------------------------------------------------------------------------
-DO $$ BEGIN
-  CREATE TYPE session_status      AS ENUM ('scheduled', 'completed', 'cancelled', 'no_show');
-  CREATE TYPE finance_entry_type  AS ENUM ('revenue', 'expense');
-  CREATE TYPE ai_call_type        AS ENUM ('llm_chat', 'tts_synthesis', 'stt_transcription');
-  CREATE TYPE chat_message_role   AS ENUM ('user', 'assistant', 'system', 'tool');
+DO $$ BEGIN CREATE TYPE session_status AS ENUM ('scheduled','completed','cancelled','no_show');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN CREATE TYPE finance_entry_type AS ENUM ('revenue','expense');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN CREATE TYPE ai_call_type        AS ENUM ('llm_chat', 'tts_synthesis', 'stt_transcription');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN CREATE TYPE chat_message_role   AS ENUM ('user', 'assistant', 'system', 'tool');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ---------------------------------------------------------------------------
@@ -39,7 +44,7 @@ END $$;
 -- clinics
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.clinics (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name        TEXT NOT NULL,
   cnpj        TEXT,
   address     TEXT,
@@ -55,7 +60,7 @@ CREATE TRIGGER clinics_set_updated_at
 -- therapists
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.therapists (
-  id                                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id                           UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   clinic_id                         UUID NOT NULL REFERENCES public.clinics(id) ON DELETE CASCADE,
   name                              TEXT NOT NULL,
@@ -79,7 +84,7 @@ CREATE TRIGGER therapists_set_updated_at
 -- admins
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.admins (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   email       TEXT NOT NULL,
   name        TEXT,
@@ -103,7 +108,7 @@ $$;
 -- patients
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.patients (
-  id                                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   clinic_id                         UUID NOT NULL REFERENCES public.clinics(id) ON DELETE CASCADE,
   therapist_id                      UUID NOT NULL REFERENCES public.therapists(id) ON DELETE CASCADE,
   name                              TEXT NOT NULL,
@@ -133,7 +138,7 @@ CREATE TRIGGER patients_set_updated_at
 -- sessions
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.sessions (
-  id                                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   clinic_id                         UUID NOT NULL REFERENCES public.clinics(id) ON DELETE CASCADE,
   therapist_id                      UUID NOT NULL REFERENCES public.therapists(id) ON DELETE CASCADE,
   patient_id                        UUID NOT NULL REFERENCES public.patients(id) ON DELETE CASCADE,
@@ -158,7 +163,7 @@ CREATE TRIGGER sessions_set_updated_at
 -- finance_entries
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.finance_entries (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   clinic_id      UUID NOT NULL REFERENCES public.clinics(id) ON DELETE CASCADE,
   therapist_id   UUID NOT NULL REFERENCES public.therapists(id) ON DELETE CASCADE,
   patient_id     UUID REFERENCES public.patients(id) ON DELETE SET NULL,
@@ -175,7 +180,7 @@ CREATE INDEX IF NOT EXISTS idx_finance_therapist_occurred ON public.finance_entr
 -- ai_usage_logs
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.ai_usage_logs (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   clinic_id       UUID REFERENCES public.clinics(id) ON DELETE SET NULL,
   therapist_id    UUID REFERENCES public.therapists(id) ON DELETE SET NULL,
   call_type       ai_call_type NOT NULL,
@@ -197,7 +202,7 @@ CREATE INDEX IF NOT EXISTS idx_ai_logs_clinic_created ON public.ai_usage_logs(cl
 -- platform_reports (admin only)
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.platform_reports (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   report_type    TEXT NOT NULL,
   period_start   DATE,
   period_end     DATE,
@@ -209,7 +214,7 @@ CREATE TABLE IF NOT EXISTS public.platform_reports (
 -- chat_conversations / chat_messages
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.chat_conversations (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   clinic_id      UUID NOT NULL REFERENCES public.clinics(id) ON DELETE CASCADE,
   therapist_id   UUID NOT NULL REFERENCES public.therapists(id) ON DELETE CASCADE,
   title          TEXT,
@@ -222,7 +227,7 @@ CREATE TRIGGER chat_conversations_set_updated_at
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 CREATE TABLE IF NOT EXISTS public.chat_messages (
-  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   conversation_id   UUID NOT NULL REFERENCES public.chat_conversations(id) ON DELETE CASCADE,
   role              chat_message_role NOT NULL,
   content           TEXT NOT NULL,
