@@ -12,7 +12,28 @@ export const supabase = createBrowserClient(
 							const [name, ...rest] = c.split('=');
 							return { name, value: rest.join('=') };
 						})
-					: []
+					: [],
+			setAll: (cookies) => {
+				if (isBrowser()) {
+					cookies.forEach(({ name, value, options }) => {
+						let cookieString = `${name}=${value}`;
+						if (options?.maxAge) cookieString += `; max-age=${options.maxAge}`;
+						if (options?.path) cookieString += `; path=${options.path}`;
+						if (options?.domain) cookieString += `; domain=${options.domain}`;
+						if (options?.secure) cookieString += '; secure';
+						if (options?.sameSite) cookieString += `; samesite=${options.sameSite}`;
+						document.cookie = cookieString;
+					});
+				}
+			},
+			remove: (names) => {
+				if (isBrowser()) {
+					const cookieNames = Array.isArray(names) ? names : [names];
+					cookieNames.forEach((name) => {
+						document.cookie = `${name}=; max-age=0; path=/`;
+					});
+				}
+			}
 		}
 	}
 );
