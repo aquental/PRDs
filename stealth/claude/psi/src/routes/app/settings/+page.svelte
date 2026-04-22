@@ -31,6 +31,16 @@
 	}
 	let { data, form }: Props = $props();
 
+	function formatFormError(err: unknown): string {
+		if (typeof err === 'string') return err;
+		if (err && typeof err === 'object') {
+			const entries = Object.entries(err as Record<string, string[]>);
+			if (entries.length > 0)
+				return entries.map(([f, msgs]) => `${f}: ${msgs.join(', ')}`).join(' · ');
+		}
+		return 'Erro inesperado. Tente novamente.';
+	}
+
 	let editingTherapist = $state(false);
 	let editingClinic = $state(false);
 
@@ -117,13 +127,13 @@
 				<Input label="E-mail" name="email" type="email" bind:value={tEmail} required />
 				<Input label="CRP" name="crp" bind:value={tCrp} required />
 				<Input label="Telefone" name="phone" bind:value={tPhone} />
-				<Input label="Valor padrão da consulta (R$)" name="default_session_fee" type="number" bind:value={tFee} />
+				<Input label="Valor da sessão (R$)" name="default_session_fee" type="number" bind:value={tFee} />
 				<div class="flex justify-end gap-2 sm:col-span-2">
 					<Button variant="ghost" onclick={() => (editingTherapist = false)}>Cancelar</Button>
 					<Button type="submit">Salvar</Button>
 				</div>
 				{#if form?.error && form?.success !== 'clinic'}
-					<p class="text-sm text-red-600 sm:col-span-2">{JSON.stringify(form.error)}</p>
+					<p class="text-sm text-red-600 sm:col-span-2">{formatFormError(form.error)}</p>
 				{/if}
 			</form>
 		{:else}
@@ -150,7 +160,7 @@
 					<dd class="mt-1 font-medium text-ink dark:text-bg">{data.therapist.phone ?? '—'}</dd>
 				</div>
 				<div>
-					<dt class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Valor padrão da consulta</dt>
+					<dt class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Valor da sessão</dt>
 					<dd class="mt-1 font-medium text-ink dark:text-bg">
 						{data.therapist.default_session_fee != null
 							? `R$ ${Number(data.therapist.default_session_fee).toFixed(2).replace('.', ',')}`
@@ -236,7 +246,7 @@
 					<Button type="submit">Salvar</Button>
 				</div>
 				{#if form?.error && form?.success !== 'therapist'}
-					<p class="text-sm text-red-600 sm:col-span-2">{JSON.stringify(form.error)}</p>
+					<p class="text-sm text-red-600 sm:col-span-2">{formatFormError(form.error)}</p>
 				{/if}
 			</form>
 		{:else}

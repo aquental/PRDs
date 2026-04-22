@@ -84,6 +84,56 @@ export const actions: Actions = {
 		return { success: true };
 	},
 
+	markPaid: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { error: 'Não autenticado' });
+
+		const { data: therapist } = await locals.supabase
+			.from('therapists')
+			.select('id')
+			.eq('user_id', user.id)
+			.single();
+		if (!therapist) return fail(403, { error: 'Terapeuta não encontrado' });
+
+		const sessionId = (await request.formData()).get('session_id') as string;
+		if (!sessionId) return fail(400, { error: 'ID da sessão obrigatório' });
+
+		const { error } = await locals.supabase
+			.from('sessions')
+			.update({ paid: true, paid_at: new Date().toISOString() })
+			.eq('id', sessionId)
+			.eq('therapist_id', therapist.id);
+
+		if (error) return fail(400, { error: error.message });
+		await invalidateDashboard(therapist.id);
+		return { success: true, action: 'markPaid' };
+	},
+
+	deleteSchedule: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { error: 'Não autenticado' });
+
+		const { data: therapist } = await locals.supabase
+			.from('therapists')
+			.select('id')
+			.eq('user_id', user.id)
+			.single();
+		if (!therapist) return fail(403, { error: 'Terapeuta não encontrado' });
+
+		const scheduleId = (await request.formData()).get('schedule_id') as string;
+		if (!scheduleId) return fail(400, { error: 'ID do horário obrigatório' });
+
+		const { error } = await locals.supabase
+			.from('schedules')
+			.update({ active: false })
+			.eq('id', scheduleId)
+			.eq('therapist_id', therapist.id);
+
+		if (error) return fail(400, { error: error.message });
+		await invalidateDashboard(therapist.id);
+		return { success: true, action: 'deleteSchedule' };
+	},
+
 	create: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
 		if (!user) return fail(401, { error: 'Não autenticado' });
