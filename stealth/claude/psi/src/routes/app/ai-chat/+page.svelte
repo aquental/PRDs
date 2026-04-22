@@ -19,7 +19,8 @@
 	let input = $state('');
 	let messages = $state<Msg[]>([]);
 	let sending = $state(false);
-	let voiceOn = $state(data.features.voice);
+	let voiceOn = $state(false);
+	$effect(() => { voiceOn = data.features.voice; });
 	let audioEl: HTMLAudioElement | null = $state(null);
 
 	const canSend = $derived(input.trim().length > 0 && !sending);

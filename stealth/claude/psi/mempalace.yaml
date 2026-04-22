@@ -1,0 +1,25 @@
+wing: psi
+rooms:
+- name: supabase
+  description: Files from supabase/
+  keywords:
+  - supabase
+  - supabase
+- name: static
+  description: Files from static/
+  keywords:
+  - static
+  - static
+- name: src
+  description: Files from src/
+  keywords:
+  - src
+  - src
+- name: backend
+  description: Files from routes/
+  keywords:
+  - backend
+  - routes
+- name: general
+  description: Files that don't fit other rooms
+  keywords: []

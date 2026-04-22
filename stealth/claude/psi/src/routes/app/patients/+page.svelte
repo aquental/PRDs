@@ -18,6 +18,7 @@
 				sessions_per_month: number;
 			}>;
 			query: string;
+			defaultFee: number;
 		};
 		form: { error?: Record<string, string[]>; success?: boolean } | null;
 	}
@@ -27,7 +28,7 @@
 	let name = $state('');
 	let email = $state('');
 	let phone = $state('');
-	let session_fee = $state('');
+	let session_fee = $state(data.defaultFee.toString());
 	let sessions_per_month = $state('4');
 </script>
 
@@ -54,7 +55,8 @@
 						await update();
 						if (!form?.error) {
 							showForm = false;
-							name = email = phone = session_fee = '';
+							name = email = phone = '';
+							session_fee = data.defaultFee.toString();
 							sessions_per_month = '4';
 						}
 					};

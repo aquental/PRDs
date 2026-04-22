@@ -50,3 +50,7 @@ export async function getCachedDashboard<T>(therapistId: string): Promise<T | nu
 export async function setCachedDashboard(therapistId: string, data: unknown, ttlSeconds = 300) {
 	await getRedis().set(`psi:dash:${therapistId}`, data, { ex: ttlSeconds });
 }
+
+export async function invalidateDashboard(therapistId: string) {
+	await getRedis().del(`psi:dash:${therapistId}`);
+}

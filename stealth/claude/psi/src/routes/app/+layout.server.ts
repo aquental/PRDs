@@ -13,7 +13,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
 	const { data: therapist } = await locals.supabase
 		.from('therapists')
-		.select('id, clinic_id, name, email, avatar_url, crp')
+		.select('id, clinic_id, name, email, avatar_url, crp, phone, default_session_fee')
 		.eq('user_id', user.id)
 		.single();
 
@@ -21,7 +21,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
 	const { data: clinic } = await locals.supabase
 		.from('clinics')
-		.select('id, name, timezone')
+		.select('id, name, timezone, cnpj, address_street, address_number, address_complement, address_zip, address_city, address_state, working_hours_start, working_hours_end')
 		.eq('id', therapist.clinic_id)
 		.single();
 

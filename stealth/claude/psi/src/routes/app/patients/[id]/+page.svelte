@@ -1,6 +1,10 @@
 <script lang="ts">
 	import Card from '$lib/ui/Card.svelte';
+	import Input from '$lib/ui/Input.svelte';
+	import Button from '$lib/ui/Button.svelte';
+	import { enhance } from '$app/forms';
 	import { formatBRL, formatDateTime, formatPhone } from '$lib/utils/format';
+	import { PencilSimple } from 'phosphor-svelte';
 
 	interface Session {
 		id: string;
@@ -24,8 +28,18 @@
 			};
 			sessions: Session[];
 		};
+		form: { error?: unknown; success?: boolean } | null;
 	}
-	let { data }: Props = $props();
+	let { data, form }: Props = $props();
+
+	let editing = $state(false);
+	let name = $state(data.patient.name);
+	let email = $state(data.patient.email ?? '');
+	let phone = $state(data.patient.phone ?? '');
+	let session_fee = $state(data.patient.session_fee?.toString() ?? '');
+	let sessions_per_month = $state(data.patient.sessions_per_month.toString());
+	let gcal_email = $state(data.patient.google_calendar_attendee_email ?? '');
+	let active = $state(data.patient.active);
 
 	const statusLabel: Record<string, string> = {
 		scheduled: 'Agendada',
@@ -49,19 +63,58 @@
 		<a href="/app/patients" class="text-xs font-medium uppercase tracking-wide text-ink-muted hover:text-primary">
 			← Pacientes
 		</a>
-		<div class="mt-2 flex items-center gap-3">
-			<h1 class="font-heading text-2xl font-bold text-ink dark:text-bg">{data.patient.name}</h1>
-			{#if data.patient.active}
-				<span class="rounded-full bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary dark:bg-primary-900/40 dark:text-primary-200">
-					Ativo
-				</span>
-			{:else}
-				<span class="rounded-full bg-primary-50 px-2.5 py-1 text-xs font-medium text-ink-muted dark:bg-white/5">
-					Inativo
-				</span>
-			{/if}
+		<div class="mt-2 flex items-center justify-between gap-3">
+			<div class="flex items-center gap-3">
+				<h1 class="font-heading text-2xl font-bold text-ink dark:text-bg">{data.patient.name}</h1>
+				{#if data.patient.active}
+					<span class="rounded-full bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary dark:bg-primary-900/40 dark:text-primary-200">
+						Ativo
+					</span>
+				{:else}
+					<span class="rounded-full bg-primary-50 px-2.5 py-1 text-xs font-medium text-ink-muted dark:bg-white/5">
+						Inativo
+					</span>
+				{/if}
+			</div>
+			<Button variant="ghost" onclick={() => (editing = !editing)}>
+				<PencilSimple size={16} /> {editing ? 'Cancelar' : 'Editar'}
+			</Button>
 		</div>
 	</div>
+
+	{#if editing}
+		<Card title="Editar paciente">
+			<form
+				method="POST"
+				action="?/update"
+				use:enhance={() => {
+					return async ({ update }) => {
+						await update({ reset: false });
+						if (!form?.error) editing = false;
+					};
+				}}
+				class="grid gap-4 sm:grid-cols-2"
+			>
+				<Input label="Nome" name="name" bind:value={name} required />
+				<Input label="E-mail" name="email" type="email" bind:value={email} />
+				<Input label="Telefone" name="phone" bind:value={phone} />
+				<Input label="Valor da consulta (R$)" name="session_fee" type="number" bind:value={session_fee} />
+				<Input label="Sessões/mês" name="sessions_per_month" type="number" bind:value={sessions_per_month} />
+				<Input label="E-mail (Google Calendar)" name="google_calendar_attendee_email" type="email" bind:value={gcal_email} />
+				<label class="flex items-center gap-2 text-sm sm:col-span-2">
+					<input type="checkbox" name="active" bind:checked={active} value="true" class="accent-primary" />
+					Paciente ativo
+				</label>
+				<div class="flex justify-end gap-2 sm:col-span-2">
+					<Button variant="ghost" onclick={() => (editing = false)}>Cancelar</Button>
+					<Button type="submit">Salvar alterações</Button>
+				</div>
+				{#if form?.error}
+					<p class="text-sm text-red-600 sm:col-span-2">{JSON.stringify(form.error)}</p>
+				{/if}
+			</form>
+		</Card>
+	{/if}
 
 	<div class="grid gap-6 lg:grid-cols-3">
 		<Card title="Contato">

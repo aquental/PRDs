@@ -14,7 +14,7 @@ export interface ChatMessage {
 export interface ChatCompletionParams {
 	messages: ChatMessage[];
 	temperature?: number;
-	max_tokens?: number;
+	max_tokens?: number; // mapped to max_completion_tokens on the wire
 	stream?: boolean;
 }
 
@@ -43,7 +43,7 @@ export async function chatComplete(
 				model: cfg.LLM_MODEL,
 				messages: params.messages,
 				temperature: params.temperature ?? 0.6,
-				max_tokens: params.max_tokens ?? 800,
+				max_completion_tokens: params.max_tokens ?? 800,
 				stream: false
 			})
 		});
