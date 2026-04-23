@@ -3,11 +3,12 @@ import {
 	projectMonthlyRevenue,
 	actualRevenue,
 	totalExpenses,
+	expensesForPeriod,
 	periodProfit,
 	outstandingRevenue,
 	patientRevenueRanking
 } from '$core/finance';
-import type { FinanceEntry, Patient, Session } from '$core/types';
+import type { Expense, FinanceEntry, Patient, Session } from '$core/types';
 
 type SessionRow = {
 	id: string;
@@ -29,26 +30,32 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 	const from = url.searchParams.get('from') ?? defaultFrom;
 	const to = url.searchParams.get('to') ?? defaultTo;
 
-	const [{ data: patients }, { data: entries }, { data: sessions }] = await Promise.all([
-		locals.supabase
-			.from('patients')
-			.select('id, name, active, session_fee, sessions_per_month')
-			.eq('therapist_id', therapist.id),
-		locals.supabase
-			.from('finance_entries')
-			.select('*')
-			.eq('therapist_id', therapist.id)
-			.gte('occurred_at', from)
-			.lte('occurred_at', to),
-		locals.supabase
-			.from('sessions')
-			.select('id, status, paid, fee, scheduled_at, patient_id, patients(name)')
-			.eq('therapist_id', therapist.id)
-	]);
+	const [{ data: patients }, { data: entries }, { data: sessions }, { data: expenseRows }] =
+		await Promise.all([
+			locals.supabase
+				.from('patients')
+				.select('id, name, active, session_fee, sessions_per_month')
+				.eq('therapist_id', therapist.id),
+			locals.supabase
+				.from('finance_entries')
+				.select('*')
+				.eq('therapist_id', therapist.id)
+				.gte('occurred_at', from)
+				.lte('occurred_at', to),
+			locals.supabase
+				.from('sessions')
+				.select('id, status, paid, fee, scheduled_at, patient_id, patients(name)')
+				.eq('therapist_id', therapist.id),
+			locals.supabase
+				.from('expenses')
+				.select('id, clinic_id, description, amount, frequency, due_day, due_date, is_active, notes, created_at, updated_at')
+				.eq('clinic_id', therapist.clinic_id)
+		]);
 
 	const P = (patients ?? []) as Patient[];
 	const E = (entries ?? []) as FinanceEntry[];
 	const S = (sessions ?? []) as unknown as SessionRow[];
+	const X = (expenseRows ?? []) as Expense[];
 
 	const unpaidSessions = S
 		.filter((s) => s.status === 'completed' && !s.paid)
@@ -65,8 +72,8 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		kpis: {
 			projected: projectMonthlyRevenue(P),
 			actual: actualRevenue(E, from, to),
-			expenses: totalExpenses(E, from, to),
-			profit: periodProfit(E, from, to),
+			expenses: totalExpenses(E, from, to) + expensesForPeriod(X, from, to),
+			profit: periodProfit(E, X, from, to),
 			outstanding: outstandingRevenue(S as unknown as Session[])
 		},
 		period: { from, to },

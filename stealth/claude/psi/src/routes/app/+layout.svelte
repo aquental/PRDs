@@ -8,6 +8,26 @@
 		children: Snippet;
 	}
 	let { data, children }: Props = $props();
+
+	const DAYS = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+	const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+	function now() {
+		const d = new Date();
+		const day = DAYS[d.getDay()];
+		const num = d.getDate();
+		const month = MONTHS[d.getMonth()];
+		const year = d.getFullYear();
+		const hh = String(d.getHours()).padStart(2, '0');
+		const mm = String(d.getMinutes()).padStart(2, '0');
+		return `${day}, ${num} de ${month} de ${year} - ${hh}:${mm}`;
+	}
+
+	let clock = $state(now());
+	$effect(() => {
+		const id = setInterval(() => (clock = now()), 1000);
+		return () => clearInterval(id);
+	});
 </script>
 
 <div class="flex min-h-screen">
@@ -22,6 +42,7 @@
 				<p class="text-sm font-semibold text-ink dark:text-bg">{data.therapist.name}</p>
 			</div>
 			<div class="flex items-center gap-3">
+				<span class="text-xs tabular-nums text-ink-muted">{clock}</span>
 				<ThemeToggle />
 				{#if data.therapist.avatar_url}
 					<img

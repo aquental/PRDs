@@ -2,7 +2,7 @@
  * Lógica de negócio financeira — pura, sem IO.
  * Testada em `src/tests/core/finance.test.ts`.
  */
-import type { FinanceEntry, Patient, Session } from './types';
+import type { Expense, FinanceEntry, Patient, Session } from './types';
 
 /** Projeta receita mensal a partir dos pacientes ativos. */
 export function projectMonthlyRevenue(patients: Patient[]): number {
@@ -29,9 +29,46 @@ export function totalExpenses(entries: FinanceEntry[], from: string, to: string)
 		.reduce((sum, e) => sum + e.amount, 0);
 }
 
-/** Lucro = receita − despesas. */
-export function periodProfit(entries: FinanceEntry[], from: string, to: string): number {
-	return actualRevenue(entries, from, to) - totalExpenses(entries, from, to);
+/**
+ * Soma as despesas recorrentes/avulsas da tabela `expenses` para o período.
+ * Periódicas são prorrateadas pelo número de meses do período:
+ *   mensal × meses, trimestral × meses/3, anual × meses/12.
+ * Avulsas entram apenas se `due_date` cai dentro do período.
+ */
+export function expensesForPeriod(expenses: Expense[], from: string, to: string): number {
+	const [fy, fm] = from.split('-').map(Number);
+	const [ty, tm] = to.split('-').map(Number);
+	const months = (ty - fy) * 12 + (tm - fm) + 1;
+
+	return expenses
+		.filter((e) => e.is_active)
+		.reduce((sum, e) => {
+			switch (e.frequency) {
+				case 'monthly':
+					return sum + e.amount * months;
+				case 'quarterly':
+					return sum + e.amount * (months / 3);
+				case 'annual':
+					return sum + e.amount * (months / 12);
+				case 'one_time':
+					if (!e.due_date) return sum;
+					return e.due_date >= from && e.due_date <= to ? sum + e.amount : sum;
+			}
+		}, 0);
+}
+
+/** Lucro = receita − despesas (finance_entries + expenses recorrentes). */
+export function periodProfit(
+	entries: FinanceEntry[],
+	expenses: Expense[],
+	from: string,
+	to: string
+): number {
+	return (
+		actualRevenue(entries, from, to) -
+		totalExpenses(entries, from, to) -
+		expensesForPeriod(expenses, from, to)
+	);
 }
 
 /**

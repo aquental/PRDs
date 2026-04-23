@@ -4,6 +4,7 @@
  */
 import { serverConfig } from '$lib/config.server';
 import { persistAIUsage } from '$lib/server/ai-usage';
+import { fetchWithRetry } from '$lib/utils/fetch';
 
 export interface SynthesizeParams {
 	text: string;
@@ -21,7 +22,7 @@ export async function synthesizeSpeech(
 	const t0 = Date.now();
 
 	try {
-		const res = await fetch(
+		const res = await fetchWithRetry(
 			`https://api.elevenlabs.io/v1/text-to-speech/${voice}?output_format=${cfg.ELEVENLABS_OUTPUT_FORMAT}`,
 			{
 				method: 'POST',

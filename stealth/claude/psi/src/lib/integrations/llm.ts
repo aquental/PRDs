@@ -5,6 +5,7 @@
  */
 import { serverConfig } from '$lib/config.server';
 import { persistAIUsage } from '$lib/server/ai-usage';
+import { fetchWithRetry } from '$lib/utils/fetch';
 
 export interface ChatMessage {
 	role: 'system' | 'user' | 'assistant' | 'tool';
@@ -33,7 +34,7 @@ export async function chatComplete(
 	const t0 = Date.now();
 
 	try {
-		const res = await fetch(`${cfg.LLM_BASE_URL}/chat/completions`, {
+		const res = await fetchWithRetry(`${cfg.LLM_BASE_URL}/chat/completions`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',

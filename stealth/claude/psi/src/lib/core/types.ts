@@ -97,6 +97,22 @@ export interface FinanceEntry {
 	created_at: string;
 }
 
+export type ExpenseFrequency = 'monthly' | 'quarterly' | 'annual' | 'one_time';
+
+export interface Expense {
+	id: string;
+	clinic_id: string;
+	description: string;
+	amount: number;
+	frequency: ExpenseFrequency;
+	due_day?: number | null;
+	due_date?: string | null;
+	is_active: boolean;
+	notes?: string | null;
+	created_at: string;
+	updated_at: string;
+}
+
 export interface AIUsageLog {
 	id: string;
 	clinic_id?: string | null;
