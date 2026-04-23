@@ -616,6 +616,56 @@
 
 	<!-- ── Aba: Despesas ── -->
 	{#if activeTab === 'despesas'}
+		{#snippet monthChart(buckets: WeekBucket[], title: string)}
+			{@const maxVal = Math.max(...buckets.map((b) => b.total), 1)}
+			{@const monthTotal = buckets.reduce((s, b) => s + b.total, 0)}
+			<div>
+				<p class="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-muted">{title}</p>
+				{#if monthTotal === 0}
+					<p class="text-xs italic text-ink-muted">Nenhuma despesa neste período.</p>
+				{:else}
+					<div class="space-y-2">
+						{#each buckets as b}
+							<div class="flex items-center gap-2 text-xs">
+								<span class="w-28 shrink-0 text-right text-ink-muted">{b.label}</span>
+								<div class="h-5 flex-1 overflow-hidden rounded bg-primary-50 dark:bg-white/5">
+									{#if b.total > 0}
+										<div
+											class="flex h-full"
+											style="width: {((b.total / maxVal) * 100).toFixed(1)}%"
+										>
+											{#each b.segments as seg}
+												<div
+													class="h-full"
+													style="width: {((seg.amount / b.total) * 100).toFixed(1)}%; background-color: {seg.color}"
+													title="{seg.description}: {formatBRL(seg.amount)}"
+												></div>
+											{/each}
+										</div>
+									{/if}
+								</div>
+								<span class="w-20 text-right text-ink-muted">
+									{b.total > 0 ? formatBRL(b.total) : '—'}
+								</span>
+							</div>
+						{/each}
+						<div class="flex items-center gap-2 border-t border-primary-100/40 pt-2 dark:border-white/5">
+							<span class="w-28 shrink-0 text-right text-xs font-semibold text-ink dark:text-bg">Total</span>
+							<div class="flex-1"></div>
+							<span class="w-20 text-right text-xs font-semibold text-ink dark:text-bg">{formatBRL(monthTotal)}</span>
+						</div>
+					</div>
+				{/if}
+			</div>
+		{/snippet}
+
+		<Card title="Distribuição semanal">
+			<div class="grid gap-8 sm:grid-cols-2">
+				{@render monthChart(currentChart, currentMonthTitle)}
+				{@render monthChart(prevChart, prevMonthTitle)}
+			</div>
+		</Card>
+
 		<Card title="Despesas">
 			{#snippet actions()}
 				{#if !showExpenseForm}
@@ -843,54 +893,5 @@
 			{/if}
 		</Card>
 
-		{#snippet monthChart(buckets: WeekBucket[], title: string)}
-			{@const maxVal = Math.max(...buckets.map((b) => b.total), 1)}
-			{@const monthTotal = buckets.reduce((s, b) => s + b.total, 0)}
-			<div>
-				<p class="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-muted">{title}</p>
-				{#if monthTotal === 0}
-					<p class="text-xs italic text-ink-muted">Nenhuma despesa neste período.</p>
-				{:else}
-					<div class="space-y-2">
-						{#each buckets as b}
-							<div class="flex items-center gap-2 text-xs">
-								<span class="w-28 shrink-0 text-right text-ink-muted">{b.label}</span>
-								<div class="h-5 flex-1 overflow-hidden rounded bg-primary-50 dark:bg-white/5">
-									{#if b.total > 0}
-										<div
-											class="flex h-full"
-											style="width: {((b.total / maxVal) * 100).toFixed(1)}%"
-										>
-											{#each b.segments as seg}
-												<div
-													class="h-full"
-													style="width: {((seg.amount / b.total) * 100).toFixed(1)}%; background-color: {seg.color}"
-													title="{seg.description}: {formatBRL(seg.amount)}"
-												></div>
-											{/each}
-										</div>
-									{/if}
-								</div>
-								<span class="w-20 text-right text-ink-muted">
-									{b.total > 0 ? formatBRL(b.total) : '—'}
-								</span>
-							</div>
-						{/each}
-						<div class="flex items-center gap-2 border-t border-primary-100/40 pt-2 dark:border-white/5">
-							<span class="w-28 shrink-0 text-right text-xs font-semibold text-ink dark:text-bg">Total</span>
-							<div class="flex-1"></div>
-							<span class="w-20 text-right text-xs font-semibold text-ink dark:text-bg">{formatBRL(monthTotal)}</span>
-						</div>
-					</div>
-				{/if}
-			</div>
-		{/snippet}
-
-		<Card title="Distribuição semanal">
-			<div class="grid gap-8 sm:grid-cols-2">
-				{@render monthChart(currentChart, currentMonthTitle)}
-				{@render monthChart(prevChart, prevMonthTitle)}
-			</div>
-		</Card>
 	{/if}
 </div>
