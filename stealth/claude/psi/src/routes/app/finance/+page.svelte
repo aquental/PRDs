@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import Card from '$lib/ui/Card.svelte';
 	import { formatBRL } from '$lib/utils/format';
 	import { goto } from '$app/navigation';
@@ -28,8 +29,8 @@
 	}
 	let { data }: Props = $props();
 
-	let fromDate = $state(data.period.from);
-	let toDate = $state(data.period.to);
+	let fromDate = $state(untrack(() => data.period.from));
+	let toDate = $state(untrack(() => data.period.to));
 	let showUnpaid = $state(false);
 
 	function applyPeriod(e: Event) {

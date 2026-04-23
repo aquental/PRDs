@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import Card from '$lib/ui/Card.svelte';
 	import Input from '$lib/ui/Input.svelte';
 	import Button from '$lib/ui/Button.svelte';
@@ -33,13 +34,13 @@
 	let { data, form }: Props = $props();
 
 	let editing = $state(false);
-	let name = $state(data.patient.name);
-	let email = $state(data.patient.email ?? '');
-	let phone = $state(data.patient.phone ?? '');
-	let session_fee = $state(data.patient.session_fee?.toString() ?? '');
-	let sessions_per_month = $state(data.patient.sessions_per_month.toString());
-	let gcal_email = $state(data.patient.google_calendar_attendee_email ?? '');
-	let active = $state(data.patient.active);
+	let name = $state(untrack(() => data.patient.name));
+	let email = $state(untrack(() => data.patient.email ?? ''));
+	let phone = $state(untrack(() => data.patient.phone ?? ''));
+	let session_fee = $state(untrack(() => data.patient.session_fee?.toString() ?? ''));
+	let sessions_per_month = $state(untrack(() => data.patient.sessions_per_month.toString()));
+	let gcal_email = $state(untrack(() => data.patient.google_calendar_attendee_email ?? ''));
+	let active = $state(untrack(() => data.patient.active));
 
 	const statusLabel: Record<string, string> = {
 		scheduled: 'Agendada',

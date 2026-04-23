@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import Card from '$lib/ui/Card.svelte';
 	import Input from '$lib/ui/Input.svelte';
 	import Button from '$lib/ui/Button.svelte';
@@ -28,7 +29,7 @@
 	let name = $state('');
 	let email = $state('');
 	let phone = $state('');
-	let session_fee = $state(data.defaultFee.toString());
+	let session_fee = $state(untrack(() => data.defaultFee.toString()));
 	let sessions_per_month = $state('4');
 </script>
 

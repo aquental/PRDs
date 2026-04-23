@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import Card from '$lib/ui/Card.svelte';
 	import Input from '$lib/ui/Input.svelte';
 	import Button from '$lib/ui/Button.svelte';
@@ -58,23 +59,25 @@
 	let editingTherapist = $state(false);
 	let editingClinic = $state(false);
 
-	let tName = $state(data.therapist.name);
-	let tEmail = $state(data.therapist.email);
-	let tCrp = $state(data.therapist.crp);
-	let tPhone = $state(data.therapist.phone ?? '');
-	let tFee = $state(data.therapist.default_session_fee?.toString() ?? '250');
+	let tName = $state(untrack(() => data.therapist.name));
+	let tEmail = $state(untrack(() => data.therapist.email));
+	let tCrp = $state(untrack(() => data.therapist.crp));
+	let tPhone = $state(untrack(() => data.therapist.phone ?? ''));
+	let tFee = $state(untrack(() => data.therapist.default_session_fee?.toString() ?? '250'));
 
-	let cName = $state(data.clinic.name);
-	let cTimezone = $state(data.clinic.timezone);
-	let cCnpj = $state(data.clinic.cnpj ?? '');
-	let cStreet = $state(data.clinic.address_street ?? '');
-	let cNumber = $state((data.clinic as { address_number?: string | null }).address_number ?? '');
-	let cComplement = $state(data.clinic.address_complement ?? '');
-	let cZip = $state(data.clinic.address_zip ?? '');
-	let cCity = $state(data.clinic.address_city ?? '');
-	let cState = $state(data.clinic.address_state ?? '');
-	let cHoursStart = $state(String(data.clinic.working_hours_start ?? 7));
-	let cHoursEnd = $state(String(data.clinic.working_hours_end ?? 21));
+	let cName = $state(untrack(() => data.clinic.name));
+	let cTimezone = $state(untrack(() => data.clinic.timezone));
+	let cCnpj = $state(untrack(() => data.clinic.cnpj ?? ''));
+	let cStreet = $state(untrack(() => data.clinic.address_street ?? ''));
+	let cNumber = $state(
+		untrack(() => (data.clinic as { address_number?: string | null }).address_number ?? '')
+	);
+	let cComplement = $state(untrack(() => data.clinic.address_complement ?? ''));
+	let cZip = $state(untrack(() => data.clinic.address_zip ?? ''));
+	let cCity = $state(untrack(() => data.clinic.address_city ?? ''));
+	let cState = $state(untrack(() => data.clinic.address_state ?? ''));
+	let cHoursStart = $state(untrack(() => String(data.clinic.working_hours_start ?? 7)));
+	let cHoursEnd = $state(untrack(() => String(data.clinic.working_hours_end ?? 21)));
 
 	const ALL_HOURS = Array.from({ length: 24 }, (_, i) => i);
 
