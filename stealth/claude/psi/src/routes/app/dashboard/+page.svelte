@@ -1,7 +1,15 @@
 <script lang="ts">
-	import Card from '$lib/ui/Card.svelte';
 	import { Users, Clock, CurrencyCircleDollar, Warning } from 'phosphor-svelte';
 	import { formatBRL } from '$lib/utils/format';
+	import MonthCalendar from '$lib/ui/MonthCalendar.svelte';
+	import type { CalendarExpense } from './+page.server';
+
+	interface CalendarData {
+		year: number;
+		month: number;
+		holidays: { day: number; name: string }[];
+		expenseDays: Record<number, CalendarExpense[]>;
+	}
 
 	interface Props {
 		data: {
@@ -11,6 +19,8 @@
 				active_patients: number;
 				upcoming_sessions: number;
 			};
+			today: string;
+			calendars: CalendarData[];
 		};
 	}
 	let { data }: Props = $props();
@@ -22,8 +32,8 @@
 		<p class="mt-1 text-sm text-ink-muted">Visão geral da sua prática.</p>
 	</div>
 
+	<!-- KPI cards -->
 	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-		<!-- Pacientes ativos -->
 		<section class="surface p-5">
 			<div class="flex items-start justify-between">
 				<div>
@@ -38,7 +48,6 @@
 			</div>
 		</section>
 
-		<!-- Sessões próx. 7 dias -->
 		<section class="surface p-5">
 			<div class="flex items-start justify-between">
 				<div>
@@ -53,7 +62,6 @@
 			</div>
 		</section>
 
-		<!-- Receita projetada -->
 		<section class="surface p-5">
 			<div class="flex items-start justify-between">
 				<div>
@@ -68,7 +76,6 @@
 			</div>
 		</section>
 
-		<!-- A receber — destaque urgência -->
 		<section class="surface border-l-4 border-l-secondary p-5">
 			<div class="flex items-start justify-between">
 				<div>
@@ -82,5 +89,23 @@
 				</span>
 			</div>
 		</section>
+	</div>
+
+	<!-- Calendars -->
+	<div>
+		<p class="mb-4 text-[11px] font-medium uppercase tracking-widest text-ink-muted">Calendário</p>
+		<div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+			{#each data.calendars as cal (cal.year + '-' + cal.month)}
+				<section class="surface p-5">
+					<MonthCalendar
+						year={cal.year}
+						month={cal.month}
+						today={data.today}
+						holidays={cal.holidays}
+						expenseDays={cal.expenseDays}
+					/>
+				</section>
+			{/each}
+		</div>
 	</div>
 </div>
