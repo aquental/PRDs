@@ -2,7 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import { page } from '$app/state';
 	import ThemeToggle from '$lib/ui/ThemeToggle.svelte';
-	import { ChartLine, Receipt, SignOut } from 'phosphor-svelte';
+	import { ChartLine, Receipt, SignOut, Gauge } from 'phosphor-svelte';
 
 	interface Props {
 		data: { admin: { email: string; name: string | null } };
@@ -12,7 +12,8 @@
 
 	const items = [
 		{ href: '/admin', label: 'Visão geral', icon: ChartLine },
-		{ href: '/admin/logs', label: 'Logs de IA', icon: Receipt }
+		{ href: '/admin/logs', label: 'Logs de IA', icon: Receipt },
+		{ href: '/admin/services', label: 'Serviços', icon: Gauge }
 	];
 </script>
 
