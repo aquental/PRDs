@@ -59,8 +59,13 @@
 	let dialog: HTMLDialogElement;
 	let toggleForm: HTMLFormElement;
 
+	// Optimistic map: id → enabled value, applied immediately on confirm
+	// so the pill flips before the server round-trip completes.
+	let optimisticEnabled = $state<Record<string, boolean>>({});
+
 	function requestToggle(svc: ServiceCheck) {
-		pendingToggle = { id: svc.id, name: svc.name, enabling: !svc.enabled };
+		const currentEnabled = optimisticEnabled[svc.id] ?? svc.enabled;
+		pendingToggle = { id: svc.id, name: svc.name, enabling: !currentEnabled };
 		dialog.showModal();
 	}
 
@@ -70,6 +75,8 @@
 	}
 
 	function confirmToggle() {
+		if (!pendingToggle) return;
+		optimisticEnabled[pendingToggle.id] = pendingToggle.enabling;
 		dialog.close();
 		toggleForm.requestSubmit();
 	}
@@ -139,6 +146,7 @@
 	class="hidden"
 	use:enhance={() => async ({ update }) => {
 		await update({ reset: false });
+		optimisticEnabled = {};
 		pendingToggle = null;
 	}}
 >
@@ -169,7 +177,8 @@
 	<div class="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
 		{#each data.services as svc (svc.id)}
 			{@const Icon = getIcon(svc.id)}
-			{@const dimmed = !svc.enabled}
+			{@const enabled = optimisticEnabled[svc.id] ?? svc.enabled}
+			{@const dimmed = !enabled}
 
 			<article
 				class="surface flex flex-col overflow-hidden p-0 transition-opacity {dimmed ? 'opacity-60' : ''}"
@@ -190,7 +199,7 @@
 					<div class="flex flex-col items-end gap-1">
 						<span class="flex items-center gap-1.5">
 							<span class="relative flex h-3 w-3">
-								{#if svc.status === 'ok' && svc.enabled}
+								{#if svc.status === 'ok' && enabled}
 									<span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-50"></span>
 								{/if}
 								<span class="relative inline-flex h-3 w-3 rounded-full ring-2 ring-offset-1 {dotBg[svc.status]} {dotRing[svc.status]}"></span>
@@ -231,15 +240,15 @@
 						<button
 							type="button"
 							onclick={() => requestToggle(svc)}
-							aria-label="{svc.enabled ? 'Desabilitar' : 'Ativar'} {svc.name}"
+							aria-label="{enabled ? 'Desabilitar' : 'Ativar'} {svc.name}"
 							class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent
 							       transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary
-							       {svc.enabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-white/20'}"
+							       {enabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-white/20'}"
 						>
 							<span
 								class="pointer-events-none inline-block h-4 w-4 translate-x-0 rounded-full bg-white shadow ring-0
 								       transition duration-200 ease-in-out
-								       {svc.enabled ? 'translate-x-4' : 'translate-x-0'}"
+								       {enabled ? 'translate-x-4' : 'translate-x-0'}"
 							></span>
 						</button>
 					</div>
