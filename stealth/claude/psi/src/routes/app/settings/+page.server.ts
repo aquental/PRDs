@@ -1,6 +1,6 @@
-import { fail } from '@sveltejs/kit';
+import { fail, error } from '@sveltejs/kit';
 import { z } from 'zod';
-import type { Actions } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 
 const TherapistSchema = z.object({
 	name: z.string().min(1),
@@ -24,6 +24,47 @@ const ClinicSchema = z.object({
 	working_hours_end: z.coerce.number().int().min(1).max(24).default(21)
 });
 
+const ExpenseSchema = z.object({
+	description: z.string().min(1),
+	amount: z.coerce.number().nonnegative(),
+	frequency: z.enum(['monthly', 'quarterly', 'annual', 'one_time']),
+	due_day: z.coerce.number().int().min(1).max(28).nullable().optional(),
+	due_date: z.string().nullable().optional(),
+	notes: z.string().optional()
+});
+
+export const load: PageServerLoad = async ({ locals }) => {
+	const { user } = await locals.safeGetSession();
+	if (!user) throw error(401, 'Não autenticado');
+
+	const { data: therapist } = await locals.supabase
+		.from('therapists')
+		.select('name, email, crp, phone, default_session_fee, clinic_id')
+		.eq('user_id', user.id)
+		.single();
+
+	if (!therapist) throw error(404, 'Terapeuta não encontrado');
+
+	const { data: clinic } = await locals.supabase
+		.from('clinics')
+		.select(
+			'name, timezone, cnpj, address_street, address_number, address_complement, address_zip, address_city, address_state, working_hours_start, working_hours_end'
+		)
+		.eq('id', therapist.clinic_id)
+		.single();
+
+	if (!clinic) throw error(404, 'Clínica não encontrada');
+
+	const { data: expenses } = await locals.supabase
+		.from('expenses')
+		.select('id, description, amount, frequency, due_day, due_date, is_active, notes, created_at')
+		.eq('clinic_id', therapist.clinic_id)
+		.order('is_active', { ascending: false })
+		.order('description');
+
+	return { therapist, clinic, expenses: expenses ?? [] };
+};
+
 export const actions: Actions = {
 	updateTherapist: async ({ request, locals }) => {
 		const { user } = await locals.safeGetSession();
@@ -32,7 +73,7 @@ export const actions: Actions = {
 		const parsed = TherapistSchema.safeParse(Object.fromEntries(await request.formData()));
 		if (!parsed.success) return fail(400, { error: parsed.error.flatten().fieldErrors });
 
-		const { error } = await locals.supabase
+		const { error: err } = await locals.supabase
 			.from('therapists')
 			.update({
 				name: parsed.data.name,
@@ -43,7 +84,7 @@ export const actions: Actions = {
 			})
 			.eq('user_id', user.id);
 
-		if (error) return fail(400, { error: error.message });
+		if (err) return fail(400, { error: err.message });
 		return { success: 'therapist' };
 	},
 
@@ -62,7 +103,7 @@ export const actions: Actions = {
 		if (!parsed.success) return fail(400, { error: parsed.error.flatten().fieldErrors });
 
 		const d = parsed.data;
-		const { error } = await locals.supabase
+		const { error: err } = await locals.supabase
 			.from('clinics')
 			.update({
 				name: d.name,
@@ -79,7 +120,102 @@ export const actions: Actions = {
 			})
 			.eq('id', therapist.clinic_id);
 
-		if (error) return fail(400, { error: error.message });
+		if (err) return fail(400, { error: err.message });
 		return { success: 'clinic' };
+	},
+
+	createExpense: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { error: 'Não autenticado' });
+
+		const { data: therapist } = await locals.supabase
+			.from('therapists')
+			.select('clinic_id')
+			.eq('user_id', user.id)
+			.single();
+		if (!therapist) return fail(403, { error: 'Sem permissão' });
+
+		const formData = await request.formData();
+		const raw = Object.fromEntries(formData);
+		const parsed = ExpenseSchema.safeParse(raw);
+		if (!parsed.success) return fail(400, { error: parsed.error.flatten().fieldErrors });
+
+		const d = parsed.data;
+		const { error: err } = await locals.supabase.from('expenses').insert({
+			clinic_id: therapist.clinic_id,
+			description: d.description,
+			amount: d.amount,
+			frequency: d.frequency,
+			due_day: d.frequency !== 'one_time' ? (d.due_day || null) : null,
+			due_date: d.frequency === 'one_time' ? (d.due_date || null) : null,
+			notes: d.notes || null
+		});
+
+		if (err) return fail(400, { error: err.message });
+		return { success: 'createExpense' };
+	},
+
+	updateExpense: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { error: 'Não autenticado' });
+
+		const { data: therapist } = await locals.supabase
+			.from('therapists')
+			.select('clinic_id')
+			.eq('user_id', user.id)
+			.single();
+		if (!therapist) return fail(403, { error: 'Sem permissão' });
+
+		const formData = await request.formData();
+		const id = formData.get('id') as string;
+		if (!id) return fail(400, { error: 'ID inválido' });
+
+		const isActive = formData.get('is_active') === 'on';
+		const raw = Object.fromEntries(formData);
+		const parsed = ExpenseSchema.safeParse(raw);
+		if (!parsed.success) return fail(400, { error: parsed.error.flatten().fieldErrors });
+
+		const d = parsed.data;
+		const { error: err } = await locals.supabase
+			.from('expenses')
+			.update({
+				description: d.description,
+				amount: d.amount,
+				frequency: d.frequency,
+				due_day: d.frequency !== 'one_time' ? (d.due_day || null) : null,
+				due_date: d.frequency === 'one_time' ? (d.due_date || null) : null,
+				notes: d.notes || null,
+				is_active: isActive
+			})
+			.eq('id', id)
+			.eq('clinic_id', therapist.clinic_id);
+
+		if (err) return fail(400, { error: err.message });
+		return { success: 'updateExpense' };
+	},
+
+	deleteExpense: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { error: 'Não autenticado' });
+
+		const { data: therapist } = await locals.supabase
+			.from('therapists')
+			.select('clinic_id')
+			.eq('user_id', user.id)
+			.single();
+		if (!therapist) return fail(403, { error: 'Sem permissão' });
+
+		const formData = await request.formData();
+		const id = formData.get('id') as string;
+		if (!id) return fail(400, { error: 'ID inválido' });
+
+		const { error: err } = await locals.supabase
+			.from('expenses')
+			.delete()
+			.eq('id', id)
+			.eq('clinic_id', therapist.clinic_id);
+
+		if (err) return fail(400, { error: err.message });
+		return { success: 'deleteExpense' };
 	}
 };
