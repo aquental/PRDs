@@ -28,7 +28,7 @@ const ClinicSchema = z.object({
 const ExpenseSchema = z.object({
 	description: z.string().min(1),
 	amount: z.coerce.number().nonnegative(),
-	frequency: z.enum(['monthly', 'quarterly', 'annual', 'one_time']),
+	frequency: z.enum(['monthly', 'quarterly', 'annual', 'one_time', 'weekly', 'biweekly']),
 	due_day: z.coerce.number().int().min(1).max(28).nullable().optional(),
 	due_date: z.string().nullable().optional(),
 	notes: z.string().optional()

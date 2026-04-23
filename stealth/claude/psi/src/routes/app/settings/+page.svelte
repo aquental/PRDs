@@ -4,7 +4,7 @@
 	import Input from '$lib/ui/Input.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import { enhance } from '$app/forms';
-	import { PencilSimple, Warning, CircleNotch, Plus, Trash, WarningCircle } from 'phosphor-svelte';
+	import { PencilSimple, Warning, CircleNotch, Plus, Trash, WarningCircle, CalendarBlank, CurrencyDollar } from 'phosphor-svelte';
 	import { PUBLIC_CEP_API_URL } from '$env/static/public';
 
 	interface Clinic {
@@ -30,7 +30,7 @@
 		id: string;
 		description: string;
 		amount: number;
-		frequency: 'monthly' | 'quarterly' | 'annual' | 'one_time';
+		frequency: 'monthly' | 'quarterly' | 'annual' | 'one_time' | 'weekly' | 'biweekly';
 		due_day?: number | null;
 		due_date?: string | null;
 		is_active: boolean;
@@ -124,13 +124,17 @@
 		monthly: 'Mensal',
 		quarterly: 'Trimestral',
 		annual: 'Anual',
-		one_time: 'Avulsa'
+		one_time: 'Avulsa',
+		weekly: 'Semanal',
+		biweekly: 'Quinzenal'
 	};
 	const FREQ_CLASS: Record<string, string> = {
 		monthly: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
 		quarterly: 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
 		annual: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-		one_time: 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-400'
+		one_time: 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-400',
+		weekly: 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+		biweekly: 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300'
 	};
 
 	function formatBRL(v: number) {
@@ -141,6 +145,11 @@
 		if (expense.frequency === 'one_time' && expense.due_date) {
 			return new Date(expense.due_date + 'T00:00:00').toLocaleDateString('pt-BR');
 		}
+		if (expense.frequency === 'weekly') return 'Toda semana';
+		if (expense.frequency === 'biweekly') {
+			if (expense.due_day) return `Dias ${expense.due_day} e ${expense.due_day + 14}`;
+			return 'Quinzenal';
+		}
 		if (expense.due_day) return `Dia ${expense.due_day}`;
 		return '—';
 	}
@@ -149,7 +158,7 @@
 		id: string;
 		description: string;
 		amount: string;
-		frequency: 'monthly' | 'quarterly' | 'annual' | 'one_time';
+		frequency: 'monthly' | 'quarterly' | 'annual' | 'one_time' | 'weekly' | 'biweekly';
 		due_day: string;
 		due_date: string;
 		notes: string;
@@ -190,6 +199,108 @@
 	function cancelExpense() {
 		showExpenseForm = false;
 	}
+
+	// ── Expense sort ──────────────────────────────────────
+	type SortMode = 'date_value' | 'value';
+	let sortMode = $state<SortMode>('date_value');
+
+	function getDueSortKey(e: Expense): number {
+		if (e.frequency === 'weekly') return 0;
+		if (e.frequency === 'one_time' && e.due_date)
+			return new Date(e.due_date + 'T00:00:00').getDate();
+		return e.due_day ?? 99;
+	}
+
+	const sortedExpenses = $derived.by(() => {
+		const list = [...data.expenses];
+		if (sortMode === 'date_value') {
+			list.sort((a, b) => {
+				const dk = getDueSortKey(a) - getDueSortKey(b);
+				return dk !== 0 ? dk : a.amount - b.amount;
+			});
+		} else {
+			list.sort((a, b) => a.amount - b.amount);
+		}
+		return list;
+	});
+
+	// ── Expense weekly charts ─────────────────────────────
+	const MONTH_NAMES_PT = [
+		'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+		'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+	];
+
+	interface WeekBucket { label: string; total: number; }
+
+	function getWeeksOfMonth(year: number, month: number): Array<{ label: string; start: Date; end: Date }> {
+		const firstDay = new Date(year, month, 1);
+		const lastDay = new Date(year, month + 1, 0);
+		const dow = firstDay.getDay();
+		const startMon = new Date(firstDay);
+		startMon.setDate(firstDay.getDate() - (dow === 0 ? 6 : dow - 1));
+		const weeks: Array<{ label: string; start: Date; end: Date }> = [];
+		let mon = new Date(startMon);
+		while (mon <= lastDay) {
+			const fri = new Date(mon);
+			fri.setDate(mon.getDate() + 4);
+			if (fri >= firstDay) {
+				weeks.push({
+					label: `${String(mon.getDate()).padStart(2,'0')}-${String(fri.getDate()).padStart(2,'0')}/${MONTH_NAMES_PT[month]}`,
+					start: new Date(mon),
+					end: new Date(fri)
+				});
+			}
+			mon = new Date(mon);
+			mon.setDate(mon.getDate() + 7);
+		}
+		return weeks;
+	}
+
+	function computeWeeklyTotals(expenses: Expense[], year: number, month: number): WeekBucket[] {
+		const weeks = getWeeksOfMonth(year, month);
+		const totals = new Array<number>(weeks.length).fill(0);
+		for (const expense of expenses) {
+			if (!expense.is_active) continue;
+			if (expense.frequency === 'one_time') {
+				if (!expense.due_date) continue;
+				const d = new Date(expense.due_date + 'T00:00:00');
+				if (d.getFullYear() !== year || d.getMonth() !== month) continue;
+				for (let i = 0; i < weeks.length; i++) {
+					if (d >= weeks[i].start && d <= weeks[i].end) { totals[i] += expense.amount; break; }
+				}
+			} else if (expense.frequency === 'weekly') {
+				for (let i = 0; i < weeks.length; i++) totals[i] += expense.amount;
+			} else if (expense.frequency === 'biweekly') {
+				if (!expense.due_day) continue;
+				for (const offset of [0, 14]) {
+					const d = new Date(year, month, expense.due_day + offset);
+					if (d.getMonth() !== month) continue;
+					for (let i = 0; i < weeks.length; i++) {
+						if (d >= weeks[i].start && d <= weeks[i].end) { totals[i] += expense.amount; break; }
+					}
+				}
+			} else {
+				if (!expense.due_day) continue;
+				const d = new Date(year, month, expense.due_day);
+				if (d.getMonth() !== month) continue;
+				for (let i = 0; i < weeks.length; i++) {
+					if (d >= weeks[i].start && d <= weeks[i].end) { totals[i] += expense.amount; break; }
+				}
+			}
+		}
+		return weeks.map((w, i) => ({ label: w.label, total: totals[i] }));
+	}
+
+	const _now = new Date();
+	const _cy = _now.getFullYear();
+	const _cm = _now.getMonth();
+	const _pd = new Date(_cy, _cm - 1, 1);
+	const _py = _pd.getFullYear();
+	const _pm = _pd.getMonth();
+	const currentMonthTitle = `${MONTH_NAMES_PT[_cm]} de ${_cy}`;
+	const prevMonthTitle = `${MONTH_NAMES_PT[_pm]} de ${_py}`;
+	const currentChart = $derived(computeWeeklyTotals(data.expenses, _cy, _cm));
+	const prevChart = $derived(computeWeeklyTotals(data.expenses, _py, _pm));
 </script>
 
 <div class="space-y-6">
@@ -432,9 +543,32 @@
 		<Card title="Despesas">
 			{#snippet actions()}
 				{#if !showExpenseForm}
-					<Button variant="ghost" onclick={startNew}>
-						<Plus size={16} /> Nova despesa
-					</Button>
+					<div class="flex items-center gap-1">
+						<button
+							type="button"
+							onclick={() => (sortMode = 'date_value')}
+							title="Ordenar por data e valor"
+							class="rounded-lg p-1.5 transition-colors {sortMode === 'date_value'
+								? 'bg-primary-50 text-primary dark:bg-primary-900/30 dark:text-primary-300'
+								: 'text-ink-muted hover:bg-primary-50/60 hover:text-ink dark:hover:bg-white/5 dark:hover:text-bg'}"
+						>
+							<CalendarBlank size={16} />
+						</button>
+						<button
+							type="button"
+							onclick={() => (sortMode = 'value')}
+							title="Ordenar por valor"
+							class="rounded-lg p-1.5 transition-colors {sortMode === 'value'
+								? 'bg-primary-50 text-primary dark:bg-primary-900/30 dark:text-primary-300'
+								: 'text-ink-muted hover:bg-primary-50/60 hover:text-ink dark:hover:bg-white/5 dark:hover:text-bg'}"
+						>
+							<CurrencyDollar size={16} />
+						</button>
+						<div class="mx-1 h-4 w-px bg-primary-100/60 dark:bg-white/10"></div>
+						<Button variant="ghost" onclick={startNew}>
+							<Plus size={16} /> Nova despesa
+						</Button>
+					</div>
 				{/if}
 			{/snippet}
 
@@ -466,6 +600,8 @@
 					<div>
 						<label for="exp_frequency" class="label">Periodicidade</label>
 						<select id="exp_frequency" name="frequency" class="input" bind:value={exp.frequency}>
+							<option value="weekly">Semanal</option>
+							<option value="biweekly">Quinzenal</option>
 							<option value="monthly">Mensal</option>
 							<option value="quarterly">Trimestral</option>
 							<option value="annual">Anual</option>
@@ -473,7 +609,11 @@
 						</select>
 					</div>
 
-					{#if exp.frequency !== 'one_time'}
+					{#if exp.frequency === 'one_time'}
+						<div>
+							<Input label="Data" name="due_date" type="date" bind:value={exp.due_date} />
+						</div>
+					{:else if exp.frequency !== 'weekly'}
 						<div>
 							<Input
 								label="Dia do vencimento (1–28)"
@@ -484,9 +624,7 @@
 							/>
 						</div>
 					{:else}
-						<div>
-							<Input label="Data" name="due_date" type="date" bind:value={exp.due_date} />
-						</div>
+						<div></div>
 					{/if}
 
 					<div class="sm:col-span-2">
@@ -522,7 +660,7 @@
 					<p class="py-6 text-center text-sm text-ink-muted">Nenhuma despesa cadastrada.</p>
 				{:else}
 					<ul class="divide-y divide-primary-100/40 dark:divide-white/5">
-						{#each data.expenses as expense (expense.id)}
+						{#each sortedExpenses as expense (expense.id)}
 							<li class="flex items-center gap-3 py-3 {expense.is_active ? '' : 'opacity-50'}">
 								<div class="min-w-0 flex-1">
 									<div class="flex flex-wrap items-center gap-2">
@@ -580,6 +718,42 @@
 					</ul>
 				{/if}
 			{/if}
+		</Card>
+
+		{#snippet monthChart(buckets: WeekBucket[], title: string)}
+			{@const maxVal = Math.max(...buckets.map((b) => b.total), 1)}
+			<div>
+				<p class="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-muted">{title}</p>
+				{#if buckets.every((b) => b.total === 0)}
+					<p class="text-xs italic text-ink-muted">Nenhuma despesa neste período.</p>
+				{:else}
+					<div class="space-y-2">
+						{#each buckets as b}
+							<div class="flex items-center gap-2 text-xs">
+								<span class="w-28 shrink-0 text-right text-ink-muted">{b.label}</span>
+								<div class="h-5 flex-1 overflow-hidden rounded bg-primary-50 dark:bg-white/5">
+									{#if b.total > 0}
+										<div
+											class="h-full rounded bg-primary/60 transition-all dark:bg-primary/50"
+											style="width: {((b.total / maxVal) * 100).toFixed(1)}%"
+										></div>
+									{/if}
+								</div>
+								<span class="w-20 text-right text-ink-muted">
+									{b.total > 0 ? formatBRL(b.total) : '—'}
+								</span>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+		{/snippet}
+
+		<Card title="Distribuição semanal">
+			<div class="grid gap-8 sm:grid-cols-2">
+				{@render monthChart(currentChart, currentMonthTitle)}
+				{@render monthChart(prevChart, prevMonthTitle)}
+			</div>
 		</Card>
 	{/if}
 </div>
