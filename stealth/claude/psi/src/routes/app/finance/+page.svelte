@@ -1,9 +1,7 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
 	import Card from '$lib/ui/Card.svelte';
-	import { formatBRL } from '$lib/utils/format';
+	import { formatBRL, formatDateTime } from '$lib/utils/format';
 	import { goto } from '$app/navigation';
-	import { formatDateTime } from '$lib/utils/format';
 
 	interface UnpaidSession {
 		id: string;
@@ -29,13 +27,37 @@
 	}
 	let { data }: Props = $props();
 
-	let fromDate = $state(untrack(() => data.period.from));
-	let toDate = $state(untrack(() => data.period.to));
 	let showUnpaid = $state(false);
 
-	function applyPeriod(e: Event) {
-		e.preventDefault();
-		goto(`?from=${fromDate}&to=${toDate}`, { replaceState: true });
+	// ── Month selector ────────────────────────────────────────────────────────
+	const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+	                'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+	const monthOptions = (() => {
+		const now = new Date();
+		return [-1, 0, 1].map((offset) => {
+			const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+			const y = d.getFullYear();
+			const m = d.getMonth();
+			const mm = String(m + 1).padStart(2, '0');
+			const lastDay = new Date(y, m + 1, 0).getDate();
+			return {
+				label: `${MONTHS[m]}/${y}`,
+				from:  `${y}-${mm}-01`,
+				to:    `${y}-${mm}-${String(lastDay).padStart(2, '0')}`
+			};
+		});
+	})();
+
+	const periodLabel = $derived((() => {
+		const [y, m] = data.period.from.split('-').map(Number);
+		return `${MONTHS[m - 1]}/${y}`;
+	})());
+
+	function onMonthChange(e: Event) {
+		const from = (e.currentTarget as HTMLSelectElement).value;
+		const opt = monthOptions.find((o) => o.from === from);
+		if (opt) goto(`?from=${opt.from}&to=${opt.to}`, { replaceState: true });
 	}
 </script>
 
@@ -43,30 +65,21 @@
 	<div class="flex flex-wrap items-start justify-between gap-4 border-b border-primary-100/40 pb-6 dark:border-white/5">
 		<div>
 			<h1 class="font-heading text-2xl font-bold text-ink dark:text-bg">Financeiro</h1>
-			<p class="mt-1 text-sm text-ink-muted">Período: {data.period.from} a {data.period.to}</p>
+			<p class="mt-1 text-sm text-ink-muted">Período: {periodLabel}</p>
 		</div>
-		<!-- Period selector -->
-		<form onsubmit={applyPeriod} class="flex items-end gap-2">
-			<div>
-				<label for="from-date" class="mb-1 block text-xs font-medium text-ink-muted">De</label>
-				<input
-					id="from-date"
-					type="date"
-					bind:value={fromDate}
-					class="input text-sm"
-				/>
-			</div>
-			<div>
-				<label for="to-date" class="mb-1 block text-xs font-medium text-ink-muted">Até</label>
-				<input
-					id="to-date"
-					type="date"
-					bind:value={toDate}
-					class="input text-sm"
-				/>
-			</div>
-			<button type="submit" class="btn btn-secondary text-sm">Filtrar</button>
-		</form>
+		<div>
+			<label for="month-select" class="mb-1 block text-xs font-medium text-ink-muted">Mês</label>
+			<select
+				id="month-select"
+				class="input text-sm"
+				value={data.period.from}
+				onchange={onMonthChange}
+			>
+				{#each monthOptions as opt}
+					<option value={opt.from}>{opt.label}</option>
+				{/each}
+			</select>
+		</div>
 	</div>
 
 	<!-- Receita: projetada + efetivada em destaque -->

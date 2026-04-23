@@ -36,16 +36,17 @@ export async function getServiceSwitches(): Promise<ServiceSwitches> {
 	}
 }
 
-/** Grava o estado de um kill-switch e invalida o cache. */
+/** Grava o estado de um kill-switch e invalida o cache. Lança erro se a escrita falhar. */
 export async function setServiceSwitch(
 	id: ServiceId,
 	enabled: boolean,
 	updatedBy: string
 ): Promise<void> {
 	const admin = createSupabaseAdminClient();
-	await admin.from('service_switches').upsert(
+	const { error } = await admin.from('service_switches').upsert(
 		{ id, enabled, updated_at: new Date().toISOString(), updated_by: updatedBy },
 		{ onConflict: 'id' }
 	);
+	if (error) throw new Error(`Falha ao atualizar switch '${id}': ${error.message}`);
 	_cache = null;
 }

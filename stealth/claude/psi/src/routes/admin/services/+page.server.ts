@@ -225,7 +225,11 @@ export const actions: Actions = {
 			return fail(400, { error: 'Serviço inválido' });
 		}
 
-		await setServiceSwitch(id as ServiceId, enabled, adminRow.email);
+		try {
+			await setServiceSwitch(id as ServiceId, enabled, adminRow.email);
+		} catch (err) {
+			return fail(500, { error: err instanceof Error ? err.message : 'Erro ao atualizar serviço' });
+		}
 		return { success: true };
 	}
 };

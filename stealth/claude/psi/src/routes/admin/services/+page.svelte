@@ -1,3 +1,9 @@
+<script module>
+	// Module-level state: survives component unmount/remount on navigation.
+	// Keeps the visual state consistent when the user switches tabs and returns.
+	let switchOverrides = $state<Record<string, boolean>>({});
+</script>
+
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { Globe, Robot, SpeakerHigh, Stack, Database, ArrowClockwise, Warning } from 'phosphor-svelte';
@@ -59,17 +65,13 @@
 	let dialog: HTMLDialogElement;
 	let toggleForm: HTMLFormElement;
 
-	// Optimistic map: id → enabled value, applied immediately on confirm
-	// so the pill flips before the server round-trip completes.
-	let optimisticEnabled = $state<Record<string, boolean>>({});
-
 	function requestToggle(svc: ServiceCheck) {
-		const currentEnabled = optimisticEnabled[svc.id] ?? svc.enabled;
+		const currentEnabled = switchOverrides[svc.id] ?? svc.enabled;
 		const enabling = !currentEnabled;
 		pendingToggle = { id: svc.id, name: svc.name, enabling };
 		if (enabling) {
-			// Enabling needs no confirmation — flip optimistically and submit immediately.
-			optimisticEnabled[svc.id] = true;
+			// Enabling needs no confirmation — flip and submit immediately.
+			switchOverrides[svc.id] = true;
 			toggleForm.requestSubmit();
 		} else {
 			dialog.showModal();
@@ -83,7 +85,7 @@
 
 	function confirmToggle() {
 		if (!pendingToggle) return;
-		optimisticEnabled[pendingToggle.id] = pendingToggle.enabling;
+		switchOverrides[pendingToggle.id] = pendingToggle.enabling;
 		dialog.close();
 		toggleForm.requestSubmit();
 	}
@@ -151,9 +153,12 @@
 	method="POST"
 	action="?/toggle"
 	class="hidden"
-	use:enhance={() => async ({ update }) => {
+	use:enhance={() => async ({ result, update }) => {
 		await update({ reset: false });
-		optimisticEnabled = {};
+		if (result.type !== 'success' && pendingToggle) {
+			// Revert on failure so the toggle reflects the real server state.
+			delete switchOverrides[pendingToggle.id];
+		}
 		pendingToggle = null;
 	}}
 >
@@ -184,7 +189,7 @@
 	<div class="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
 		{#each data.services as svc (svc.id)}
 			{@const Icon = getIcon(svc.id)}
-			{@const enabled = optimisticEnabled[svc.id] ?? svc.enabled}
+			{@const enabled = switchOverrides[svc.id] ?? svc.enabled}
 			{@const dimmed = !enabled}
 
 			<article
