@@ -6,7 +6,7 @@
 		value?: string;
 		placeholder?: string;
 		required?: boolean;
-		autocomplete?: string;
+		autocomplete?: import('svelte/elements').HTMLInputAttributes['autocomplete'];
 		'data-testid'?: string;
 	}
 	let {

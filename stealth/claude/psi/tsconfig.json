@@ -14,5 +14,12 @@
 		"module": "ESNext",
 		"types": ["vitest/globals"]
 	},
-	"include": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte", "tests/**/*.ts"]
+	"include": [
+		"src/**/*.ts",
+		"src/**/*.js",
+		"src/**/*.svelte",
+		"tests/**/*.ts",
+		".svelte-kit/ambient.d.ts",
+		".svelte-kit/non-ambient.d.ts"
+	]
 }

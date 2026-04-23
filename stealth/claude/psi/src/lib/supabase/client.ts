@@ -1,4 +1,4 @@
-import { createBrowserClient, isBrowser } from '@supabase/ssr';
+import { createBrowserClient, isBrowser, type CookieOptions } from '@supabase/ssr';
 import { publicConfig } from '$lib/config';
 
 export const supabase = createBrowserClient(
@@ -13,7 +13,7 @@ export const supabase = createBrowserClient(
 							return { name, value: rest.join('=') };
 						})
 					: [],
-			setAll: (cookies) => {
+			setAll: (cookies: { name: string; value: string; options: CookieOptions }[]) => {
 				if (isBrowser()) {
 					cookies.forEach(({ name, value, options }) => {
 						let cookieString = `${name}=${value}`;
@@ -26,7 +26,7 @@ export const supabase = createBrowserClient(
 					});
 				}
 			},
-			remove: (names) => {
+			remove: (names: string | string[]) => {
 				if (isBrowser()) {
 					const cookieNames = Array.isArray(names) ? names : [names];
 					cookieNames.forEach((name) => {

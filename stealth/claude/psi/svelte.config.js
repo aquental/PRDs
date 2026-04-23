@@ -12,7 +12,7 @@ const config = {
 			$components: 'src/lib/ui',
 			$core: 'src/lib/core'
 		},
-		csrf: { checkOrigin: true }
+		csrf: { trustedOrigins: [] }
 	},
 	compilerOptions: {
 		runes: true // Svelte 5 runes mode

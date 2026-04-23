@@ -1,4 +1,4 @@
-import { createServerClient } from '@supabase/ssr';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import type { RequestEvent } from '@sveltejs/kit';
 import { publicConfig } from '$lib/config';
 import { serverConfig } from '$lib/config.server';
@@ -11,7 +11,7 @@ export function createSupabaseServerClient(event: RequestEvent) {
 	return createServerClient(publicConfig.PUBLIC_SUPABASE_URL, publicConfig.PUBLIC_SUPABASE_ANON_KEY, {
 		cookies: {
 			getAll: () => event.cookies.getAll(),
-			setAll: (cookies) => {
+			setAll: (cookies: { name: string; value: string; options: CookieOptions }[]) => {
 				for (const { name, value, options } of cookies) {
 					event.cookies.set(name, value, { ...options, path: '/' });
 				}
