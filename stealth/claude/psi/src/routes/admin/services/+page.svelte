@@ -65,8 +65,15 @@
 
 	function requestToggle(svc: ServiceCheck) {
 		const currentEnabled = optimisticEnabled[svc.id] ?? svc.enabled;
-		pendingToggle = { id: svc.id, name: svc.name, enabling: !currentEnabled };
-		dialog.showModal();
+		const enabling = !currentEnabled;
+		pendingToggle = { id: svc.id, name: svc.name, enabling };
+		if (enabling) {
+			// Enabling needs no confirmation — flip optimistically and submit immediately.
+			optimisticEnabled[svc.id] = true;
+			toggleForm.requestSubmit();
+		} else {
+			dialog.showModal();
+		}
 	}
 
 	function cancelToggle() {
