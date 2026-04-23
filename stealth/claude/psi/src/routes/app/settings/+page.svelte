@@ -30,11 +30,13 @@
 		id: string;
 		description: string;
 		amount: number;
-		frequency: 'monthly' | 'quarterly' | 'annual' | 'one_time' | 'weekly' | 'biweekly';
+		frequency: 'monthly' | 'quarterly' | 'annual' | 'one_time' | 'weekly' | 'biweekly' | 'semestral';
 		due_day?: number | null;
 		due_date?: string | null;
 		is_active: boolean;
 		notes?: string | null;
+		color?: string | null;
+		month?: number | null;
 	}
 	interface Props {
 		data: { therapist: Therapist; clinic: Clinic; expenses: Expense[]; cepEnabled: boolean };
@@ -120,9 +122,37 @@
 	}
 
 	// ── Despesas ──────────────────────────────────────────
+	const EXPENSE_COLORS = [
+		{ hex: '#FFADAD', label: 'Vermelho' },
+		{ hex: '#FFD6A5', label: 'Laranja' },
+		{ hex: '#FDFFB6', label: 'Amarelo' },
+		{ hex: '#CAFFBF', label: 'Verde' },
+		{ hex: '#9BF6FF', label: 'Ciano' },
+		{ hex: '#A0C4FF', label: 'Azul' },
+		{ hex: '#BDB2FF', label: 'Índigo' },
+		{ hex: '#FFC6FF', label: 'Violeta' },
+	];
+	const DEFAULT_COLOR = '#A0C4FF';
+
+	const MONTH_OPTIONS = [
+		{ value: 1,  label: 'Janeiro'   },
+		{ value: 2,  label: 'Fevereiro' },
+		{ value: 3,  label: 'Março'     },
+		{ value: 4,  label: 'Abril'     },
+		{ value: 5,  label: 'Maio'      },
+		{ value: 6,  label: 'Junho'     },
+		{ value: 7,  label: 'Julho'     },
+		{ value: 8,  label: 'Agosto'    },
+		{ value: 9,  label: 'Setembro'  },
+		{ value: 10, label: 'Outubro'   },
+		{ value: 11, label: 'Novembro'  },
+		{ value: 12, label: 'Dezembro'  },
+	];
+
 	const FREQ_LABEL: Record<string, string> = {
 		monthly: 'Mensal',
 		quarterly: 'Trimestral',
+		semestral: 'Semestral',
 		annual: 'Anual',
 		one_time: 'Avulsa',
 		weekly: 'Semanal',
@@ -131,6 +161,7 @@
 	const FREQ_CLASS: Record<string, string> = {
 		monthly: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
 		quarterly: 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+		semestral: 'bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
 		annual: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300',
 		one_time: 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-400',
 		weekly: 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
@@ -150,7 +181,13 @@
 			if (expense.due_day) return `Dias ${expense.due_day} e ${expense.due_day + 14}`;
 			return 'Quinzenal';
 		}
-		if (expense.due_day) return `Dia ${expense.due_day}`;
+		const monthLabel = expense.month && expense.month > 0
+			? MONTH_OPTIONS.find((m) => m.value === expense.month)?.label
+			: null;
+		const dayStr = expense.due_day ? `Dia ${expense.due_day}` : null;
+		if (monthLabel && dayStr) return `${dayStr} · ${monthLabel}`;
+		if (monthLabel) return monthLabel;
+		if (dayStr) return dayStr;
 		return '—';
 	}
 
@@ -158,12 +195,17 @@
 		id: string;
 		description: string;
 		amount: string;
-		frequency: 'monthly' | 'quarterly' | 'annual' | 'one_time' | 'weekly' | 'biweekly';
+		frequency: 'monthly' | 'quarterly' | 'annual' | 'one_time' | 'weekly' | 'biweekly' | 'semestral';
 		due_day: string;
 		due_date: string;
 		notes: string;
 		is_active: boolean;
+		color: string;
+		month: string;
 	}
+
+	const MONTH_FREQS = ['annual', 'semestral', 'quarterly'] as const;
+	const needsMonth = (f: string) => (MONTH_FREQS as readonly string[]).includes(f);
 
 	let showExpenseForm = $state(false);
 	let exp = $state<ExpenseForm>({
@@ -174,11 +216,13 @@
 		due_day: '',
 		due_date: '',
 		notes: '',
-		is_active: true
+		is_active: true,
+		color: DEFAULT_COLOR,
+		month: '0'
 	});
 
 	function startNew() {
-		exp = { id: '', description: '', amount: '', frequency: 'monthly', due_day: '', due_date: '', notes: '', is_active: true };
+		exp = { id: '', description: '', amount: '', frequency: 'monthly', due_day: '', due_date: '', notes: '', is_active: true, color: DEFAULT_COLOR, month: '0' };
 		showExpenseForm = true;
 	}
 
@@ -191,7 +235,9 @@
 			due_day: String(expense.due_day ?? ''),
 			due_date: expense.due_date ?? '',
 			notes: expense.notes ?? '',
-			is_active: expense.is_active
+			is_active: expense.is_active,
+			color: expense.color ?? DEFAULT_COLOR,
+			month: String(expense.month ?? 0)
 		};
 		showExpenseForm = true;
 	}
@@ -230,7 +276,8 @@
 		'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
 	];
 
-	interface WeekBucket { label: string; total: number; }
+	interface WeekSegment { description: string; color: string; amount: number; }
+	interface WeekBucket { label: string; segments: WeekSegment[]; total: number; }
 
 	function getWeeksOfMonth(year: number, month: number): Array<{ label: string; start: Date; end: Date }> {
 		const firstDay = new Date(year, month, 1);
@@ -256,39 +303,68 @@
 		return weeks;
 	}
 
+	// Occurrence formula: base_date + vez × delta_days, for vez = 0 … times-1
+	const FREQ_DEF: Record<string, { times: number; delta: number }> = {
+		weekly:    { times: 4, delta: 7   },
+		biweekly:  { times: 2, delta: 14  },
+		monthly:   { times: 1, delta: 30  },
+		quarterly: { times: 4, delta: 90  },
+		semestral: { times: 2, delta: 180 },
+		annual:    { times: 1, delta: 365 },
+	};
+
 	function computeWeeklyTotals(expenses: Expense[], year: number, month: number): WeekBucket[] {
 		const weeks = getWeeksOfMonth(year, month);
-		const totals = new Array<number>(weeks.length).fill(0);
+		const buckets: WeekBucket[] = weeks.map(w => ({ label: w.label, segments: [], total: 0 }));
+
+		const addTo = (i: number, seg: WeekSegment) => {
+			buckets[i].segments.push(seg);
+			buckets[i].total += seg.amount;
+		};
+
+		// Try to fit a date into whichever week it belongs to.
+		const placeDate = (d: Date, seg: WeekSegment) => {
+			for (let i = 0; i < weeks.length; i++) {
+				if (d >= weeks[i].start && d <= weeks[i].end) { addTo(i, { ...seg }); break; }
+			}
+		};
+
 		for (const expense of expenses) {
 			if (!expense.is_active) continue;
+			const seg: WeekSegment = {
+				description: expense.description,
+				color: expense.color || DEFAULT_COLOR,
+				amount: expense.amount
+			};
+
 			if (expense.frequency === 'one_time') {
 				if (!expense.due_date) continue;
-				const d = new Date(expense.due_date + 'T00:00:00');
-				if (d.getFullYear() !== year || d.getMonth() !== month) continue;
-				for (let i = 0; i < weeks.length; i++) {
-					if (d >= weeks[i].start && d <= weeks[i].end) { totals[i] += expense.amount; break; }
-				}
-			} else if (expense.frequency === 'weekly') {
-				for (let i = 0; i < weeks.length; i++) totals[i] += expense.amount;
-			} else if (expense.frequency === 'biweekly') {
-				if (!expense.due_day) continue;
-				for (const offset of [0, 14]) {
-					const d = new Date(year, month, expense.due_day + offset);
-					if (d.getMonth() !== month) continue;
-					for (let i = 0; i < weeks.length; i++) {
-						if (d >= weeks[i].start && d <= weeks[i].end) { totals[i] += expense.amount; break; }
-					}
-				}
-			} else {
-				if (!expense.due_day) continue;
-				const d = new Date(year, month, expense.due_day);
-				if (d.getMonth() !== month) continue;
-				for (let i = 0; i < weeks.length; i++) {
-					if (d >= weeks[i].start && d <= weeks[i].end) { totals[i] += expense.amount; break; }
+				placeDate(new Date(expense.due_date + 'T00:00:00'), seg);
+				continue;
+			}
+
+			const def = FREQ_DEF[expense.frequency];
+			if (!def) continue;
+
+			// quarterly / semestral / annual have expense.month > 0 as their cycle anchor.
+			// weekly / biweekly / monthly have expense.month = 0, so use the target month.
+			const cycleMonth0 = expense.month && expense.month > 0 ? expense.month - 1 : month;
+			const baseDay = expense.due_day ?? 1;
+
+			// Generate from both the current year and the previous year so that cycles
+			// whose root falls in a prior year still produce hits in the target month
+			// (e.g. semestral starting in July produces a January occurrence next year).
+			for (const baseYear of [year, year - 1]) {
+				const base = new Date(baseYear, cycleMonth0, baseDay);
+				for (let vez = 0; vez < def.times; vez++) {
+					placeDate(
+						new Date(base.getTime() + vez * def.delta * 24 * 60 * 60 * 1000),
+						seg
+					);
 				}
 			}
 		}
-		return weeks.map((w, i) => ({ label: w.label, total: totals[i] }));
+		return buckets;
 	}
 
 	const _now = new Date();
@@ -599,11 +675,21 @@
 
 					<div>
 						<label for="exp_frequency" class="label">Periodicidade</label>
-						<select id="exp_frequency" name="frequency" class="input" bind:value={exp.frequency}>
+						<select
+							id="exp_frequency"
+							name="frequency"
+							class="input"
+							bind:value={exp.frequency}
+							onchange={() => {
+								if (needsMonth(exp.frequency) && Number(exp.month) === 0) exp.month = '1';
+								if (!needsMonth(exp.frequency)) exp.month = '0';
+							}}
+						>
 							<option value="weekly">Semanal</option>
 							<option value="biweekly">Quinzenal</option>
 							<option value="monthly">Mensal</option>
 							<option value="quarterly">Trimestral</option>
+							<option value="semestral">Semestral</option>
 							<option value="annual">Anual</option>
 							<option value="one_time">Avulsa</option>
 						</select>
@@ -613,7 +699,11 @@
 						<div>
 							<Input label="Data" name="due_date" type="date" bind:value={exp.due_date} />
 						</div>
-					{:else if exp.frequency !== 'weekly'}
+						<div></div>
+					{:else if exp.frequency === 'weekly'}
+						<div></div>
+						<div></div>
+					{:else}
 						<div>
 							<Input
 								label="Dia do vencimento (1–28)"
@@ -623,12 +713,41 @@
 								placeholder="Ex: 5"
 							/>
 						</div>
-					{:else}
-						<div></div>
+						{#if needsMonth(exp.frequency)}
+							<div>
+								<label for="exp_month" class="label">Mês</label>
+								<select id="exp_month" name="month" class="input" bind:value={exp.month}>
+									{#each MONTH_OPTIONS as mo}
+										<option value={String(mo.value)}>{mo.label}</option>
+									{/each}
+								</select>
+							</div>
+						{:else}
+							<div></div>
+						{/if}
+					{/if}
+					{#if !needsMonth(exp.frequency)}
+						<input type="hidden" name="month" value="0" />
 					{/if}
 
 					<div class="sm:col-span-2">
 						<Input label="Observações" name="notes" bind:value={exp.notes} placeholder="Opcional" />
+					</div>
+
+					<div class="sm:col-span-2">
+						<p class="label mb-1.5">Cor</p>
+						<div class="flex flex-wrap gap-2">
+							{#each EXPENSE_COLORS as c}
+								<button
+									type="button"
+									onclick={() => (exp.color = c.hex)}
+									title={c.label}
+									class="h-7 w-7 rounded-full border-2 transition-all hover:scale-110 {exp.color === c.hex ? 'border-ink/60 scale-110 dark:border-bg/60' : 'border-transparent'}"
+									style="background-color: {c.hex}"
+								></button>
+							{/each}
+						</div>
+						<input type="hidden" name="color" value={exp.color} />
 					</div>
 
 					{#if exp.id}
@@ -664,6 +783,10 @@
 							<li class="flex items-center gap-3 py-3 {expense.is_active ? '' : 'opacity-50'}">
 								<div class="min-w-0 flex-1">
 									<div class="flex flex-wrap items-center gap-2">
+										<span
+											class="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+											style="background-color: {expense.color ?? DEFAULT_COLOR}"
+										></span>
 										<span class="font-medium text-ink dark:text-bg">{expense.description}</span>
 										<span class="rounded-full px-2 py-0.5 text-[11px] font-medium {FREQ_CLASS[expense.frequency]}">
 											{FREQ_LABEL[expense.frequency]}
@@ -722,9 +845,10 @@
 
 		{#snippet monthChart(buckets: WeekBucket[], title: string)}
 			{@const maxVal = Math.max(...buckets.map((b) => b.total), 1)}
+			{@const monthTotal = buckets.reduce((s, b) => s + b.total, 0)}
 			<div>
 				<p class="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-muted">{title}</p>
-				{#if buckets.every((b) => b.total === 0)}
+				{#if monthTotal === 0}
 					<p class="text-xs italic text-ink-muted">Nenhuma despesa neste período.</p>
 				{:else}
 					<div class="space-y-2">
@@ -734,9 +858,17 @@
 								<div class="h-5 flex-1 overflow-hidden rounded bg-primary-50 dark:bg-white/5">
 									{#if b.total > 0}
 										<div
-											class="h-full rounded bg-primary/60 transition-all dark:bg-primary/50"
+											class="flex h-full"
 											style="width: {((b.total / maxVal) * 100).toFixed(1)}%"
-										></div>
+										>
+											{#each b.segments as seg}
+												<div
+													class="h-full"
+													style="width: {((seg.amount / b.total) * 100).toFixed(1)}%; background-color: {seg.color}"
+													title="{seg.description}: {formatBRL(seg.amount)}"
+												></div>
+											{/each}
+										</div>
 									{/if}
 								</div>
 								<span class="w-20 text-right text-ink-muted">
@@ -744,6 +876,11 @@
 								</span>
 							</div>
 						{/each}
+						<div class="flex items-center gap-2 border-t border-primary-100/40 pt-2 dark:border-white/5">
+							<span class="w-28 shrink-0 text-right text-xs font-semibold text-ink dark:text-bg">Total</span>
+							<div class="flex-1"></div>
+							<span class="w-20 text-right text-xs font-semibold text-ink dark:text-bg">{formatBRL(monthTotal)}</span>
+						</div>
 					</div>
 				{/if}
 			</div>

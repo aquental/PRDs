@@ -28,10 +28,12 @@ const ClinicSchema = z.object({
 const ExpenseSchema = z.object({
 	description: z.string().min(1),
 	amount: z.coerce.number().nonnegative(),
-	frequency: z.enum(['monthly', 'quarterly', 'annual', 'one_time', 'weekly', 'biweekly']),
+	frequency: z.enum(['monthly', 'quarterly', 'annual', 'one_time', 'weekly', 'biweekly', 'semestral']),
 	due_day: z.coerce.number().int().min(1).max(28).nullable().optional(),
 	due_date: z.string().nullable().optional(),
-	notes: z.string().optional()
+	notes: z.string().optional(),
+	color: z.string().optional(),
+	month: z.coerce.number().int().min(0).max(12).default(0)
 });
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -58,7 +60,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const { data: expenses } = await locals.supabase
 		.from('expenses')
-		.select('id, description, amount, frequency, due_day, due_date, is_active, notes, created_at')
+		.select('id, description, amount, frequency, due_day, due_date, is_active, notes, color, month, created_at')
 		.eq('clinic_id', therapist.clinic_id)
 		.order('is_active', { ascending: false })
 		.order('description');
@@ -151,7 +153,9 @@ export const actions: Actions = {
 			frequency: d.frequency,
 			due_day: d.frequency !== 'one_time' ? (d.due_day || null) : null,
 			due_date: d.frequency === 'one_time' ? (d.due_date || null) : null,
-			notes: d.notes || null
+			notes: d.notes || null,
+			color: d.color || null,
+			month: d.month
 		});
 
 		if (err) return fail(400, { error: err.message });
@@ -188,6 +192,8 @@ export const actions: Actions = {
 				due_day: d.frequency !== 'one_time' ? (d.due_day || null) : null,
 				due_date: d.frequency === 'one_time' ? (d.due_date || null) : null,
 				notes: d.notes || null,
+				color: d.color || null,
+				month: d.month,
 				is_active: isActive
 			})
 			.eq('id', id)
