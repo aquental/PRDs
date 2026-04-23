@@ -1,6 +1,7 @@
 import { fail, error } from '@sveltejs/kit';
 import { z } from 'zod';
 import type { Actions, PageServerLoad } from './$types';
+import { getServiceSwitches } from '$lib/server/service-switches';
 
 const TherapistSchema = z.object({
 	name: z.string().min(1),
@@ -62,7 +63,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.order('is_active', { ascending: false })
 		.order('description');
 
-	return { therapist, clinic, expenses: expenses ?? [] };
+	const { cep: cepEnabled } = await getServiceSwitches();
+
+	return { therapist, clinic, expenses: expenses ?? [], cepEnabled };
 };
 
 export const actions: Actions = {

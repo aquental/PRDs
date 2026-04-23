@@ -4,7 +4,7 @@
 	import Input from '$lib/ui/Input.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import { enhance } from '$app/forms';
-	import { PencilSimple, Warning, CircleNotch, Plus, Trash } from 'phosphor-svelte';
+	import { PencilSimple, Warning, CircleNotch, Plus, Trash, WarningCircle } from 'phosphor-svelte';
 	import { PUBLIC_CEP_API_URL } from '$env/static/public';
 
 	interface Clinic {
@@ -37,7 +37,7 @@
 		notes?: string | null;
 	}
 	interface Props {
-		data: { therapist: Therapist; clinic: Clinic; expenses: Expense[] };
+		data: { therapist: Therapist; clinic: Clinic; expenses: Expense[]; cepEnabled: boolean };
 		form: { error?: unknown; success?: string } | null;
 	}
 	let { data, form }: Props = $props();
@@ -328,9 +328,15 @@
 							name="address_zip"
 							bind:value={cZip}
 							placeholder="00000-000"
-							oninput={onZipInput}
+							oninput={data.cepEnabled ? onZipInput : undefined}
 							class="input w-full"
 						/>
+						{#if !data.cepEnabled}
+							<p class="mt-1 flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400">
+								<WarningCircle size={12} weight="fill" />
+								Busca automática de endereço temporariamente indisponível. Entre em contato com o administrador.
+							</p>
+						{/if}
 					</div>
 					<Input label="Cidade" name="address_city" bind:value={cCity} />
 					<Input label="Estado" name="address_state" bind:value={cState} placeholder="SP" />

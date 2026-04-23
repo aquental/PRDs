@@ -2,7 +2,7 @@ import type { PageServerLoad } from './$types';
 import { publicConfig } from '$lib/config';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
-	const { therapist } = await parent();
+	const { therapist, switches } = await parent();
 
 	const { data: conversations } = await locals.supabase
 		.from('chat_conversations')
@@ -13,6 +13,10 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
 	return {
 		conversations: conversations ?? [],
-		features: { voice: publicConfig.PUBLIC_FEATURE_VOICE_CHAT }
+		features: {
+			voice: publicConfig.PUBLIC_FEATURE_VOICE_CHAT && switches.tts,
+			llm: switches.llm,
+			tts: switches.tts
+		}
 	};
 };

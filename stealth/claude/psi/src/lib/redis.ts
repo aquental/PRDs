@@ -1,6 +1,7 @@
 import { Redis } from '@upstash/redis';
 import { Ratelimit } from '@upstash/ratelimit';
 import { serverConfig } from '$lib/config.server';
+import { getServiceSwitches } from '$lib/server/service-switches';
 
 let _redis: Redis | null = null;
 export function getRedis() {
@@ -35,22 +36,34 @@ export function ttsRateLimiter() {
 }
 
 // --- Helpers: estado quente do chat (TTL curto) ------------------------------
+// Cada função verifica o kill-switch antes de tocar no Redis.
+
 export async function getCachedChatState<T>(key: string): Promise<T | null> {
+	const sw = await getServiceSwitches();
+	if (!sw.redis) return null;
 	return await getRedis().get<T>(`psi:chat:${key}`);
 }
 
 export async function setCachedChatState(key: string, value: unknown, ttlSeconds = 60 * 30) {
+	const sw = await getServiceSwitches();
+	if (!sw.redis) return;
 	await getRedis().set(`psi:chat:${key}`, value, { ex: ttlSeconds });
 }
 
 export async function getCachedDashboard<T>(therapistId: string): Promise<T | null> {
+	const sw = await getServiceSwitches();
+	if (!sw.redis) return null;
 	return await getRedis().get<T>(`psi:dash:${therapistId}`);
 }
 
 export async function setCachedDashboard(therapistId: string, data: unknown, ttlSeconds = 300) {
+	const sw = await getServiceSwitches();
+	if (!sw.redis) return;
 	await getRedis().set(`psi:dash:${therapistId}`, data, { ex: ttlSeconds });
 }
 
 export async function invalidateDashboard(therapistId: string) {
+	const sw = await getServiceSwitches();
+	if (!sw.redis) return;
 	await getRedis().del(`psi:dash:${therapistId}`);
 }

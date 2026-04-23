@@ -1,7 +1,9 @@
-import type { PageServerLoad } from './$types';
+import { fail } from '@sveltejs/kit';
+import type { Actions, PageServerLoad } from './$types';
 import { serverConfig } from '$lib/config.server';
 import { getRedis } from '$lib/redis';
 import { createSupabaseAdminClient } from '$lib/supabase/server';
+import { getServiceSwitches, setServiceSwitch, type ServiceId } from '$lib/server/service-switches';
 import { env } from '$env/dynamic/public';
 import type { AICallType, AIUsageLog } from '$core/types';
 
@@ -15,6 +17,10 @@ export interface ServiceCheck {
 	message: string;
 	logs: string[];
 	checked_at: string;
+	/** Estado do kill-switch (true = habilitado). */
+	enabled: boolean;
+	/** Se false, este serviço não possui kill-switch. */
+	hasKillSwitch: boolean;
 }
 
 const TIMEOUT = 5_000;
@@ -38,9 +44,11 @@ function makeCheck(
 	status: ServiceStatus,
 	latency_ms: number,
 	message: string,
-	logs: string[]
+	logs: string[],
+	enabled: boolean,
+	hasKillSwitch: boolean
 ): ServiceCheck {
-	return { id, name, status, latency_ms, message, logs, checked_at: new Date().toISOString() };
+	return { id, name, status, latency_ms, message, logs, checked_at: new Date().toISOString(), enabled, hasKillSwitch };
 }
 
 type AdminClient = ReturnType<typeof createSupabaseAdminClient>;
@@ -65,30 +73,35 @@ async function recentLogs(admin: AdminClient, types: AICallType[]): Promise<stri
 	);
 }
 
-// ── Checagem individual ──────────────────────────────────────────────────────
+// ── Checagens individuais ─────────────────────────────────────────────────────
 
-async function checkCep(cepUrl: string): Promise<ServiceCheck> {
+async function checkCep(cepUrl: string, enabled: boolean): Promise<ServiceCheck> {
+	if (!enabled) {
+		return makeCheck('cep', 'API de CEP', 'error', 0, 'Kill-switch ativo — desabilitado pelo admin', [], enabled, true);
+	}
 	const t0 = Date.now();
 	try {
 		const res = await withTimeout(fetch(`${cepUrl}/01001000/json/`));
 		const ms = Date.now() - t0;
-		if (!res.ok) return makeCheck('cep', 'API de CEP', 'error', ms, `HTTP ${res.status}`, []);
+		if (!res.ok) return makeCheck('cep', 'API de CEP', 'error', ms, `HTTP ${res.status}`, [], enabled, true);
 		const json = (await res.json()) as Record<string, unknown>;
-		if (!json?.cep) return makeCheck('cep', 'API de CEP', 'warning', ms, 'Resposta inesperada', []);
+		if (!json?.cep) return makeCheck('cep', 'API de CEP', 'warning', ms, 'Resposta inesperada', [], enabled, true);
 		const status: ServiceStatus = ms > 2000 ? 'warning' : 'ok';
-		return makeCheck('cep', 'API de CEP', status, ms, ms > 2000 ? 'Latência elevada' : 'Operacional', []);
+		return makeCheck('cep', 'API de CEP', status, ms, ms > 2000 ? 'Latência elevada' : 'Operacional', [], enabled, true);
 	} catch (e) {
-		return makeCheck('cep', 'API de CEP', 'error', Date.now() - t0, errMsg(e), []);
+		return makeCheck('cep', 'API de CEP', 'error', Date.now() - t0, errMsg(e), [], enabled, true);
 	}
 }
 
-async function checkLlm(cfg: ReturnType<typeof serverConfig>, admin: AdminClient): Promise<ServiceCheck> {
+async function checkLlm(cfg: ReturnType<typeof serverConfig>, admin: AdminClient, enabled: boolean): Promise<ServiceCheck> {
+	if (!enabled) {
+		const logs = await recentLogs(admin, ['llm_chat']).catch(() => []);
+		return makeCheck('llm', 'API de LLM', 'error', 0, 'Kill-switch ativo — desabilitado pelo admin', logs, enabled, true);
+	}
 	const t0 = Date.now();
 	const [connResult, logsResult] = await Promise.allSettled([
 		withTimeout(
-			fetch(`${cfg.LLM_BASE_URL}/models`, {
-				headers: { Authorization: `Bearer ${cfg.LLM_API_KEY}` }
-			})
+			fetch(`${cfg.LLM_BASE_URL}/models`, { headers: { Authorization: `Bearer ${cfg.LLM_API_KEY}` } })
 		),
 		recentLogs(admin, ['llm_chat'])
 	]);
@@ -96,22 +109,21 @@ async function checkLlm(cfg: ReturnType<typeof serverConfig>, admin: AdminClient
 	const logs = logsResult.status === 'fulfilled' ? logsResult.value : [];
 
 	if (connResult.status === 'rejected') {
-		return makeCheck('llm', 'API de LLM', 'error', ms, errMsg(connResult.reason), logs);
+		return makeCheck('llm', 'API de LLM', 'error', ms, errMsg(connResult.reason), logs, enabled, true);
 	}
 	const res = connResult.value;
-	// 404 é aceitável — alguns provedores não expõem /models
 	if (!res.ok && res.status !== 404) {
-		return makeCheck('llm', 'API de LLM', 'error', ms, `HTTP ${res.status}`, logs);
+		return makeCheck('llm', 'API de LLM', 'error', ms, `HTTP ${res.status}`, logs, enabled, true);
 	}
 	const status: ServiceStatus = ms > 2000 ? 'warning' : 'ok';
-	return makeCheck(
-		'llm', 'API de LLM', status, ms,
-		ms > 2000 ? 'Latência elevada' : `Operacional · ${cfg.LLM_MODEL}`,
-		logs
-	);
+	return makeCheck('llm', 'API de LLM', status, ms, ms > 2000 ? 'Latência elevada' : `Operacional · ${cfg.LLM_MODEL}`, logs, enabled, true);
 }
 
-async function checkTts(cfg: ReturnType<typeof serverConfig>, admin: AdminClient): Promise<ServiceCheck> {
+async function checkTts(cfg: ReturnType<typeof serverConfig>, admin: AdminClient, enabled: boolean): Promise<ServiceCheck> {
+	if (!enabled) {
+		const logs = await recentLogs(admin, ['tts_synthesis', 'stt_transcription']).catch(() => []);
+		return makeCheck('tts', 'API de TTS / STT', 'error', 0, 'Kill-switch ativo — desabilitado pelo admin', logs, enabled, true);
+	}
 	const t0 = Date.now();
 	const [connResult, logsResult] = await Promise.allSettled([
 		withTimeout(
@@ -125,33 +137,32 @@ async function checkTts(cfg: ReturnType<typeof serverConfig>, admin: AdminClient
 	const logs = logsResult.status === 'fulfilled' ? logsResult.value : [];
 
 	if (connResult.status === 'rejected') {
-		return makeCheck('tts', 'API de TTS / STT', 'error', ms, errMsg(connResult.reason), logs);
+		return makeCheck('tts', 'API de TTS / STT', 'error', ms, errMsg(connResult.reason), logs, enabled, true);
 	}
 	const res = connResult.value;
 	if (!res.ok) {
 		const st: ServiceStatus = res.status === 401 || res.status === 403 ? 'error' : 'warning';
-		return makeCheck('tts', 'API de TTS / STT', st, ms, `HTTP ${res.status}`, logs);
+		return makeCheck('tts', 'API de TTS / STT', st, ms, `HTTP ${res.status}`, logs, enabled, true);
 	}
 	const status: ServiceStatus = ms > 2000 ? 'warning' : 'ok';
-	return makeCheck(
-		'tts', 'API de TTS / STT', status, ms,
-		ms > 2000 ? 'Latência elevada' : `Operacional · ${cfg.ELEVENLABS_MODEL}`,
-		logs
-	);
+	return makeCheck('tts', 'API de TTS / STT', status, ms, ms > 2000 ? 'Latência elevada' : `Operacional · ${cfg.ELEVENLABS_MODEL}`, logs, enabled, true);
 }
 
-async function checkRedis(): Promise<ServiceCheck> {
+async function checkRedis(enabled: boolean): Promise<ServiceCheck> {
+	if (!enabled) {
+		return makeCheck('redis', 'Cache (Redis)', 'error', 0, 'Kill-switch ativo — desabilitado pelo admin', [], enabled, true);
+	}
 	const t0 = Date.now();
 	try {
 		const pong = await withTimeout(getRedis().ping());
 		const ms = Date.now() - t0;
 		if (pong !== 'PONG') {
-			return makeCheck('redis', 'Cache (Redis)', 'warning', ms, `Resposta inesperada: ${pong}`, []);
+			return makeCheck('redis', 'Cache (Redis)', 'warning', ms, `Resposta inesperada: ${pong}`, [], enabled, true);
 		}
 		const status: ServiceStatus = ms > 500 ? 'warning' : 'ok';
-		return makeCheck('redis', 'Cache (Redis)', status, ms, ms > 500 ? 'Latência elevada' : 'Operacional', []);
+		return makeCheck('redis', 'Cache (Redis)', status, ms, ms > 500 ? 'Latência elevada' : 'Operacional', [], enabled, true);
 	} catch (e) {
-		return makeCheck('redis', 'Cache (Redis)', 'error', Date.now() - t0, errMsg(e), []);
+		return makeCheck('redis', 'Cache (Redis)', 'error', Date.now() - t0, errMsg(e), [], enabled, true);
 	}
 }
 
@@ -162,11 +173,11 @@ async function checkSupabase(admin: AdminClient): Promise<ServiceCheck> {
 			admin.from('clinics').select('id', { count: 'exact', head: true }).then((r) => r)
 		);
 		const ms = Date.now() - t0;
-		if (result.error) return makeCheck('supabase', 'Banco de dados', 'error', ms, result.error.message, []);
+		if (result.error) return makeCheck('supabase', 'Banco de dados', 'error', ms, result.error.message, [], true, false);
 		const status: ServiceStatus = ms > 1000 ? 'warning' : 'ok';
-		return makeCheck('supabase', 'Banco de dados', status, ms, ms > 1000 ? 'Latência elevada' : 'Operacional', []);
+		return makeCheck('supabase', 'Banco de dados', status, ms, ms > 1000 ? 'Latência elevada' : 'Operacional', [], true, false);
 	} catch (e) {
-		return makeCheck('supabase', 'Banco de dados', 'error', Date.now() - t0, errMsg(e), []);
+		return makeCheck('supabase', 'Banco de dados', 'error', Date.now() - t0, errMsg(e), [], true, false);
 	}
 }
 
@@ -176,14 +187,45 @@ export const load: PageServerLoad = async () => {
 	const cfg = serverConfig();
 	const admin = createSupabaseAdminClient();
 	const cepUrl = env.PUBLIC_CEP_API_URL ?? 'https://viacep.com.br/ws';
+	const switches = await getServiceSwitches();
 
 	const services = await Promise.all([
-		checkCep(cepUrl),
-		checkLlm(cfg, admin),
-		checkTts(cfg, admin),
-		checkRedis(),
+		checkCep(cepUrl, switches.cep),
+		checkLlm(cfg, admin, switches.llm),
+		checkTts(cfg, admin, switches.tts),
+		checkRedis(switches.redis),
 		checkSupabase(admin)
 	]);
 
 	return { services };
+};
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+
+const VALID_IDS: ServiceId[] = ['cep', 'llm', 'tts', 'redis'];
+
+export const actions: Actions = {
+	toggle: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { error: 'Não autenticado' });
+
+		const admin = createSupabaseAdminClient();
+		const { data: adminRow } = await admin
+			.from('admins')
+			.select('email')
+			.eq('user_id', user.id)
+			.maybeSingle();
+		if (!adminRow) return fail(403, { error: 'Sem permissão' });
+
+		const fd = await request.formData();
+		const id = fd.get('id') as string;
+		const enabled = fd.get('enabled') === 'true';
+
+		if (!VALID_IDS.includes(id as ServiceId)) {
+			return fail(400, { error: 'Serviço inválido' });
+		}
+
+		await setServiceSwitch(id as ServiceId, enabled, adminRow.email);
+		return { success: true };
+	}
 };

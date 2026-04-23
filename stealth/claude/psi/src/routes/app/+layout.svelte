@@ -4,7 +4,11 @@
 	import ThemeToggle from '$lib/ui/ThemeToggle.svelte';
 
 	interface Props {
-		data: { therapist: { name: string; avatar_url: string | null }; clinic: { name: string } };
+		data: {
+			therapist: { name: string; avatar_url: string | null };
+			clinic: { name: string };
+			switches: { cep: boolean; llm: boolean; tts: boolean; redis: boolean };
+		};
 		children: Snippet;
 	}
 	let { data, children }: Props = $props();

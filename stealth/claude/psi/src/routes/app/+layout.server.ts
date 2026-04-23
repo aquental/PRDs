@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { createSupabaseAdminClient } from '$lib/supabase/server';
+import { getServiceSwitches } from '$lib/server/service-switches';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
 	const { session, user } = await locals.safeGetSession();
@@ -25,5 +26,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		.eq('id', therapist.clinic_id)
 		.single();
 
-	return { therapist, clinic };
+	const switches = await getServiceSwitches();
+
+	return { therapist, clinic, switches };
 };
