@@ -94,7 +94,6 @@
 				addrLogradouro = json.logradouro ?? addrLogradouro;
 				addrCidade = json.localidade ?? addrCidade;
 				addrEstado = json.uf ?? addrEstado;
-				addrComplemento = json.complemento || addrComplemento;
 			}
 		} catch {
 			// silencia erro de rede
