@@ -1,12 +1,53 @@
 import { create } from "zustand";
 import { INITIAL_PATIENTS } from "../api/mockData";
 
-export type FamilyMember = {
+export type RelativeRelationship =
+  | "filho"
+  | "filha"
+  | "cônjuge"
+  | "companheiro"
+  | "pai"
+  | "mãe"
+  | "irmão"
+  | "irmã"
+  | "tio"
+  | "tia"
+  | "avô"
+  | "avó"
+  | "outro";
+
+export const RELATIVE_RELATIONSHIPS: RelativeRelationship[] = [
+  "filho",
+  "filha",
+  "cônjuge",
+  "companheiro",
+  "pai",
+  "mãe",
+  "irmão",
+  "irmã",
+  "tio",
+  "tia",
+  "avô",
+  "avó",
+  "outro",
+];
+
+export type PatientRelative = {
   id: number;
   name: string;
-  relation: string;
-  phone: string;
-  email: string;
+  relationship: RelativeRelationship;
+  phone?: string;
+  email?: string;
+  notes?: string;
+};
+
+export type PatientAddress = {
+  street?: string;
+  number?: string;
+  complement?: string;
+  zip?: string;
+  city?: string;
+  state?: string;
 };
 
 export type Patient = {
@@ -15,13 +56,13 @@ export type Patient = {
   phone: string;
   email: string;
   cpf: string;
-  address: string;
+  address?: PatientAddress;
   sessionsPerMonth: number;
   valuePerSession: number;
   since: string;
   status: string;
   notes: string;
-  family: FamilyMember[];
+  relatives: PatientRelative[];
 };
 
 export type PatientsStore = {

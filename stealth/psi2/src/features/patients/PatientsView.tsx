@@ -6,20 +6,42 @@ import { fmt } from "../../lib/utils";
 import Avatar from "../../components/common/Avatar";
 import Badge from "../../components/common/Badge";
 
+type NewPatientForm = {
+  name: string;
+  phone: string;
+  email: string;
+  cpf: string;
+  street: string;
+  number: string;
+  complement: string;
+  zip: string;
+  city: string;
+  state: string;
+  sessionsPerMonth: number;
+  valuePerSession: number;
+};
+
+const EMPTY_FORM: NewPatientForm = {
+  name: "",
+  phone: "",
+  email: "",
+  cpf: "",
+  street: "",
+  number: "",
+  complement: "",
+  zip: "",
+  city: "",
+  state: "",
+  sessionsPerMonth: 2,
+  valuePerSession: 200,
+};
+
 export default function PatientsView() {
   const { patients, addPatient } = usePatientsStore();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    cpf: "",
-    address: "",
-    sessionsPerMonth: 2,
-    valuePerSession: 200,
-  });
+  const [form, setForm] = useState<NewPatientForm>(EMPTY_FORM);
 
   const filtered = patients.filter(
     (p) =>
@@ -31,23 +53,48 @@ export default function PatientsView() {
   const handleAdd = () => {
     if (!form.name.trim()) return;
     addPatient({
-      ...form,
+      name: form.name,
+      phone: form.phone,
+      email: form.email,
+      cpf: form.cpf,
+      address: {
+        street: form.street,
+        number: form.number,
+        complement: form.complement,
+        zip: form.zip,
+        city: form.city,
+        state: form.state,
+      },
+      sessionsPerMonth: Number(form.sessionsPerMonth),
+      valuePerSession: Number(form.valuePerSession),
       since: new Date().toISOString().slice(0, 7),
       status: "active",
-      family: [],
+      relatives: [],
       notes: "",
     });
     setShowModal(false);
-    setForm({
-      name: "",
-      phone: "",
-      email: "",
-      cpf: "",
-      address: "",
-      sessionsPerMonth: 2,
-      valuePerSession: 200,
-    });
+    setForm(EMPTY_FORM);
   };
+
+  const fields: {
+    label: string;
+    key: keyof NewPatientForm;
+    full?: boolean;
+    type?: string;
+  }[] = [
+    { label: "Nome completo", key: "name", full: true },
+    { label: "Telefone", key: "phone" },
+    { label: "Email", key: "email" },
+    { label: "CPF", key: "cpf" },
+    { label: "Rua", key: "street", full: true },
+    { label: "Número", key: "number" },
+    { label: "Complemento", key: "complement" },
+    { label: "CEP", key: "zip" },
+    { label: "Cidade", key: "city" },
+    { label: "Estado", key: "state" },
+    { label: "Sessões por mês", key: "sessionsPerMonth", type: "number" },
+    { label: "Valor por sessão (R$)", key: "valuePerSession", type: "number" },
+  ];
 
   return (
     <div style={{ padding: "32px 40px", maxWidth: 1060 }}>
@@ -235,7 +282,6 @@ export default function PatientsView() {
         </table>
       </div>
 
-      {/* Add modal */}
       {showModal && (
         <div
           style={{
@@ -292,23 +338,7 @@ export default function PatientsView() {
                 gap: 16,
               }}
             >
-              {[
-                { label: "Nome completo", key: "name", full: true },
-                { label: "Telefone", key: "phone" },
-                { label: "Email", key: "email" },
-                { label: "CPF", key: "cpf" },
-                { label: "Endereço", key: "address", full: true },
-                {
-                  label: "Sessões por mês",
-                  key: "sessionsPerMonth",
-                  type: "number",
-                },
-                {
-                  label: "Valor por sessão (R$)",
-                  key: "valuePerSession",
-                  type: "number",
-                },
-              ].map((f) => (
+              {fields.map((f) => (
                 <div
                   key={f.key}
                   style={{ gridColumn: f.full ? "1 / -1" : "auto" }}
@@ -325,9 +355,15 @@ export default function PatientsView() {
                   </label>
                   <input
                     type={f.type || "text"}
-                    value={form[f.key]}
+                    value={form[f.key] as string | number}
                     onChange={(e) =>
-                      setForm((prev) => ({ ...prev, [f.key]: e.target.value }))
+                      setForm((prev) => ({
+                        ...prev,
+                        [f.key]:
+                          f.type === "number"
+                            ? Number(e.target.value)
+                            : e.target.value,
+                      }))
                     }
                     style={{
                       width: "100%",
