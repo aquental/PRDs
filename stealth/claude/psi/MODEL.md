@@ -1,305 +1,173 @@
-# MODEL.md — Psi · Modelo de Dados
+# Psi — Database Model (Supabase PostgreSQL)
 
-**Versão:** 1.0 (abril/2026)
-**Stack:** PostgreSQL 15+ (Supabase) · pgcrypto · uuid-ossp · Supabase Auth · Row Level Security
-**Alinhamento:** PRD v1 — três interfaces (psicólogo, paciente via Google Calendar, admin)
-
----
-
-## 1. Princípios do modelo
-
-1. **Tenancy por `clinic_id`** — toda tabela de domínio carrega `clinic_id` para isolamento via RLS.
-2. **LGPD-first** — dados sensíveis (`cpf`, notas clínicas, `google_refresh_token`) armazenados como `BYTEA` criptografado com `pgcrypto` (`pgp_sym_encrypt`).
-3. **Paciente nunca autentica** — não há tabela `patients.user_id`. Paciente é convidado do calendar via `google_calendar_attendee_email`.
-4. **Admin é uma role global** — tabela `admins` separada, função `is_admin()` usada em todas as policies.
-5. **Logging first-class** — `ai_usage_logs` registra *toda* chamada LLM/TTS/STT desde o dia 1 (mitigação de custo).
-6. **Auditoria temporal** — `created_at` e `updated_at` em todas as entidades mutáveis, com trigger automático.
+**Version:** 1.1 (April 2026)  
+**Last updated:** 2026-04-23  
+**Stack:** PostgreSQL 15+ (Supabase) · pgcrypto · uuid-ossp · Supabase Auth · Row Level Security  
+**Alignment:** PRD v1 — three interfaces (therapist, patient via Google Calendar, admin)
 
 ---
 
-## 2. Visão geral (ERD textual)
+## 1. Principles
 
+1. **Tenancy by `clinic_id`** — every domain table carries `clinic_id` for RLS isolation.
+2. **LGPD-first** — sensitive data (`cpf`, clinical notes, `google_refresh_token`) stored as `BYTEA` encrypted with `pgcrypto` (`pgp_sym_encrypt`).
+3. **Patient never authenticates** — no `patients.user_id`. Patient is invited via `google_calendar_attendee_email`.
+4. **Admin is a global role** — separate `admins` table + `is_admin()` function.
+5. **First-class logging** — `ai_usage_logs` records every LLM/TTS/STT call from day one.
+6. **Temporal audit** — `created_at` / `updated_at` on all mutable entities with automatic trigger.
+
+---
+
+## 2. Overview (Text ERD)
+
+```mermaid
+graph TD
+    A[clinics] --> B[therapists]
+    A --> C[patients]
+    A --> D[sessions]
+    A --> E[expenses]
+    A --> F[finance_entries]
+    A --> G[chat_conversations]
+    A --> H[ai_usage_logs]
+    A --> I[holidays]
+    A --> J[service_switches]
+
+    B --> C
+    B --> D
+    B --> K[schedules]
+    B --> F
+    B --> G
+
+    C --> D
+    auth.users --> B
+    auth.users --> admins
 ```
-auth.users ────┬──── therapists ──── clinics ────┐
-               │         │                       │
-               └── admins │                       │
-                         ├── patients ───────────┤
-                         │      │                 │
-                         │      ├── sessions ─────┤
-                         │      │       │         │
-                         │      └── finance_entries
-                         │
-                         └── chat_conversations ── chat_messages
-                                   │
-                                   └── ai_usage_logs ◄── (também de rotas públicas)
-
-platform_reports ──── (admin-only, sem FK de tenant)
-```
 
 ---
 
-## 3. Tipos enumerados
+## 3. Enums
 
-| Tipo                  | Valores                                                   | Uso                          |
-| --------------------- | --------------------------------------------------------- | ---------------------------- |
-| `session_status`      | `scheduled`, `completed`, `cancelled`, `no_show`          | `sessions.status`            |
-| `finance_entry_type`  | `revenue`, `expense`                                      | `finance_entries.type`       |
-| `ai_call_type`        | `llm_chat`, `tts_synthesis`, `stt_transcription`          | `ai_usage_logs.call_type`    |
-| `chat_message_role`   | `user`, `assistant`, `system`, `tool`                     | `chat_messages.role`         |
+| Enum                 | Values                                                                          |
+| -------------------- | ------------------------------------------------------------------------------- |
+| `session_status`     | `scheduled`, `completed`, `cancelled`, `no_show`                                |
+| `finance_entry_type` | `revenue`, `expense`                                                            |
+| `ai_call_type`       | `llm_chat`, `tts_synthesis`, `stt_transcription`                                |
+| `chat_message_role`  | `user`, `assistant`, `system`, `tool`                                           |
+| `expense_frequency`  | `monthly`, `quarterly`, `annual`, `one_time`, `weekly`, `biweekly`, `semestral` |
+| `schedule_frequency` | `weekly`, `biweekly`                                                            |
 
 ---
 
-## 4. Tabelas
+## 4. Tables
 
 ### 4.1 `clinics` — Workspace/Tenant
 
-Workspace obrigatório que agrupa terapeuta, pacientes, sessões e finanças.
+| Column                    | Type          | Constraints                   | Notes |
+| ------------------------- | ------------- | ----------------------------- | ----- |
+| `id`                      | `UUID`        | PK, `gen_random_uuid()`       |       |
+| `name`                    | `TEXT`        | NOT NULL                      |       |
+| `cnpj`                    | `TEXT`        |                               |       |
+| `address`                 | `TEXT`        | (legacy)                      |       |
+| `address_street`          | `TEXT`        |                               | New   |
+| `address_complement`      | `TEXT`        |                               | New   |
+| `address_number`          | `TEXT`        |                               | New   |
+| `address_zip`             | `TEXT`        |                               | New   |
+| `address_city`            | `TEXT`        |                               | New   |
+| `address_state`           | `TEXT`        |                               | New   |
+| `timezone`                | `TEXT`        | DEFAULT `'America/Sao_Paulo'` |       |
+| `created_at`/`updated_at` | `TIMESTAMPTZ` | Trigger `set_updated_at`      |       |
 
-| Coluna       | Tipo           | Constraints            | Observações                |
-| ------------ | -------------- | ---------------------- | -------------------------- |
-| `id`         | `UUID`         | PK, default `uuid_generate_v4()` |                  |
-| `name`       | `TEXT`         | `NOT NULL`             | Nome da clínica            |
-| `cnpj`       | `TEXT`         |                        | Opcional (profissional liberal) |
-| `address`    | `TEXT`         |                        |                            |
-| `timezone`   | `TEXT`         | `NOT NULL DEFAULT 'America/Sao_Paulo'` |             |
-| `created_at` | `TIMESTAMPTZ`  | `DEFAULT NOW()`        |                            |
-| `updated_at` | `TIMESTAMPTZ`  | `DEFAULT NOW()`        | trigger `set_updated_at`   |
+### 4.2 `therapists`
 
-### 4.2 `therapists` — Psicóloga(o)
+| Column                           | Type            | Constraints                    | Notes |
+| -------------------------------- | --------------- | ------------------------------ | ----- |
+| `id`                             | `UUID`          | PK                             |       |
+| `user_id`                        | `UUID`          | UNIQUE NOT NULL → `auth.users` |       |
+| `clinic_id`                      | `UUID`          | NOT NULL → clinics             |       |
+| `name`, `crp`, `email`           | `TEXT`          | NOT NULL                       |       |
+| `cpf_encrypted`                  | `BYTEA`         |                                | LGPD  |
+| `default_session_fee`            | `NUMERIC(10,2)` | DEFAULT 250                    | New   |
+| `google_refresh_token_encrypted` | `BYTEA`         |                                |       |
+| `google_calendar_id`             | `TEXT`          |                                |       |
+| ... (other fields as before)     |                 |                                |       |
 
-Perfil profissional. 1:1 com `auth.users`.
+_(Full columns match attached + `default_session_fee`)_
 
-| Coluna                  | Tipo           | Constraints                                | Observações                         |
-| ----------------------- | -------------- | ------------------------------------------ | ----------------------------------- |
-| `id`                    | `UUID`         | PK                                         |                                     |
-| `user_id`               | `UUID`         | `UNIQUE NOT NULL`, FK `auth.users(id)` `ON DELETE CASCADE` | Supabase Auth   |
-| `clinic_id`             | `UUID`         | `NOT NULL`, FK `clinics(id)` `ON DELETE CASCADE` |                               |
-| `name`                  | `TEXT`         | `NOT NULL`                                 |                                     |
-| `crp`                   | `TEXT`         | `NOT NULL`                                 | Ex.: `06/12345`                     |
-| `cpf_encrypted`         | `BYTEA`        |                                            | `pgp_sym_encrypt(cpf, key)`         |
-| `cnpj`                  | `TEXT`         |                                            |                                     |
-| `phone`                 | `TEXT`         |                                            |                                     |
-| `email`                 | `TEXT`         | `NOT NULL`                                 |                                     |
-| `address`               | `TEXT`         |                                            |                                     |
-| `avatar_url`            | `TEXT`         |                                            | Supabase Storage                    |
-| `google_refresh_token_encrypted` | `BYTEA` |                                           | OAuth calendar (LGPD)               |
-| `google_calendar_id`    | `TEXT`         |                                            | calendar default                    |
-| `created_at`/`updated_at` | `TIMESTAMPTZ` |                                          |                                     |
+### 4.3 `admins`, `patients`, `sessions`, `finance_entries`, `ai_usage_logs`, `platform_reports`, `chat_conversations` / `chat_messages`
 
-### 4.3 `admins` — Operadores da plataforma
+→ Same as previously generated (with all columns from migrations).
 
-Role global. **Independente de `clinic_id`**.
+### 4.4 `expenses` (New)
 
-| Coluna       | Tipo    | Constraints                                |
-| ------------ | ------- | ------------------------------------------ |
-| `id`         | `UUID`  | PK                                         |
-| `user_id`    | `UUID`  | `UNIQUE NOT NULL`, FK `auth.users(id)`     |
-| `email`      | `TEXT`  | `NOT NULL`                                 |
-| `name`       | `TEXT`  |                                            |
-| `created_at` | `TIMESTAMPTZ` |                                      |
+**Table:** `public.expenses`
 
-### 4.4 `patients` — Pacientes
+| Column                    | Type                | Constraints         | Notes           |
+| ------------------------- | ------------------- | ------------------- | --------------- |
+| `id`                      | `UUID`              | PK                  |                 |
+| `clinic_id`               | `UUID`              | NOT NULL → clinics  |                 |
+| `description`             | `TEXT`              | NOT NULL            |                 |
+| `amount`                  | `NUMERIC(10,2)`     | NOT NULL            |                 |
+| `frequency`               | `expense_frequency` | DEFAULT `'monthly'` |                 |
+| `due_day`                 | `SMALLINT`          | 1-28                |                 |
+| `due_date`                | `DATE`              |                     |                 |
+| `month`                   | `SMALLINT`          | DEFAULT 0           | 0 = every month |
+| `color`                   | `TEXT`              |                     | For charts      |
+| `is_active`               | `BOOLEAN`           | DEFAULT true        |                 |
+| `notes`                   | `TEXT`              |                     |                 |
+| `created_at`/`updated_at` | `TIMESTAMPTZ`       | Trigger             |                 |
 
-Dados clínicos e de faturamento do paciente.
+**RLS:** `clinic_id = current_clinic_id()`
 
-| Coluna                           | Tipo           | Constraints                                    | Observações                            |
-| -------------------------------- | -------------- | ---------------------------------------------- | -------------------------------------- |
-| `id`                             | `UUID`         | PK                                             |                                        |
-| `clinic_id`                      | `UUID`         | `NOT NULL`, FK `clinics(id)` `ON DELETE CASCADE` | tenancy                              |
-| `therapist_id`                   | `UUID`         | `NOT NULL`, FK `therapists(id)` `ON DELETE CASCADE` |                                  |
-| `name`                           | `TEXT`         | `NOT NULL`                                     |                                        |
-| `email`                          | `TEXT`         |                                                |                                        |
-| `phone`                          | `TEXT`         |                                                |                                        |
-| `address`                        | `TEXT`         |                                                |                                        |
-| `cpf_encrypted`                  | `BYTEA`        |                                                | LGPD                                   |
-| `birth_date`                     | `DATE`         |                                                |                                        |
-| `relatives`                      | `JSONB`        | `DEFAULT '[]'::jsonb`                          | `[{name, relation, phone, email}]`     |
-| `invoice_data`                   | `JSONB`        | `DEFAULT '{}'::jsonb`                          | `{cpf, address, phone, email}`         |
-| `session_fee`                    | `NUMERIC(10,2)`|                                                | valor padrão da consulta               |
-| `sessions_per_month`             | `INTEGER`      | `DEFAULT 4`                                    |                                        |
-| `frequency`                      | `TEXT`         |                                                | Ex.: `weekly`, `biweekly`              |
-| `notes_encrypted`                | `BYTEA`        |                                                | Observações clínicas gerais            |
-| `active`                         | `BOOLEAN`      | `DEFAULT TRUE`                                 |                                        |
-| `google_calendar_attendee_email` | `TEXT`         |                                                | Email usado como convidado do Calendar |
-| `created_at`/`updated_at`        | `TIMESTAMPTZ`  |                                                |                                        |
+### 4.5 `schedules` (New)
 
-### 4.5 `sessions` — Sessões de terapia
+**Table:** `public.schedules`
 
-| Coluna                         | Tipo           | Constraints                                  | Observações                              |
-| ------------------------------ | -------------- | -------------------------------------------- | ---------------------------------------- |
-| `id`                           | `UUID`         | PK                                           |                                          |
-| `clinic_id`                    | `UUID`         | `NOT NULL`, FK `clinics(id)`                 |                                          |
-| `therapist_id`                 | `UUID`         | `NOT NULL`, FK `therapists(id)`              |                                          |
-| `patient_id`                   | `UUID`         | `NOT NULL`, FK `patients(id)` `ON DELETE CASCADE` |                                     |
-| `scheduled_at`                 | `TIMESTAMPTZ`  | `NOT NULL`                                   |                                          |
-| `duration_minutes`             | `INTEGER`      | `DEFAULT 50`                                 |                                          |
-| `fee`                          | `NUMERIC(10,2)`|                                              | Snapshot; pode divergir do `session_fee` atual do paciente |
-| `status`                       | `session_status` | `DEFAULT 'scheduled'`                       |                                          |
-| `notes_encrypted`              | `BYTEA`        |                                              | Prontuário da sessão (LGPD)              |
-| `google_calendar_event_id`     | `TEXT`         | `UNIQUE`                                     | Idempotência da sincronização            |
-| `paid`                         | `BOOLEAN`      | `DEFAULT FALSE`                              |                                          |
-| `paid_at`                      | `TIMESTAMPTZ`  |                                              |                                          |
-| `created_at`/`updated_at`      | `TIMESTAMPTZ`  |                                              |                                          |
+| Column             | Type                 | Constraints        | Notes |
+| ------------------ | -------------------- | ------------------ | ----- |
+| `id`               | `UUID`               | PK                 |       |
+| `clinic_id`        | `UUID`               | NOT NULL           |       |
+| `therapist_id`     | `UUID`               | NOT NULL           |       |
+| `patient_id`       | `UUID`               | NOT NULL           |       |
+| `day_of_week`      | `SMALLINT`           | 1-5 (Mon-Fri)      |       |
+| `start_time`       | `TIME`               | NOT NULL           |       |
+| `duration_minutes` | `INTEGER`            | DEFAULT 50         |       |
+| `frequency`        | `schedule_frequency` | DEFAULT `'weekly'` |       |
+| `fee`              | `NUMERIC(10,2)`      |                    |       |
+| `active`           | `BOOLEAN`            | DEFAULT true       |       |
+| `created_at`       | `TIMESTAMPTZ`        |                    |       |
 
-### 4.6 `finance_entries` — Lançamentos financeiros
+**Unique:** `(therapist_id, day_of_week, start_time)`
 
-Suporta projeção de receita e custos explicitamente, sem depender de agregação sobre `sessions`.
+### 4.6 `holidays`
 
-| Coluna         | Tipo             | Constraints                            | Observações                         |
-| -------------- | ---------------- | -------------------------------------- | ----------------------------------- |
-| `id`           | `UUID`           | PK                                     |                                     |
-| `clinic_id`    | `UUID`           | `NOT NULL`, FK                          |                                     |
-| `therapist_id` | `UUID`           | `NOT NULL`, FK                          |                                     |
-| `patient_id`   | `UUID`           | FK `patients(id)` `ON DELETE SET NULL`  | opcional                            |
-| `session_id`   | `UUID`           | FK `sessions(id)` `ON DELETE SET NULL`  | opcional                            |
-| `type`         | `finance_entry_type` | `NOT NULL`                          | `revenue` ou `expense`              |
-| `amount`       | `NUMERIC(10,2)`  | `NOT NULL`, `CHECK (amount >= 0)`       | valor absoluto; sinal vem de `type` |
-| `description`  | `TEXT`           |                                        |                                     |
-| `occurred_at`  | `DATE`           | `NOT NULL`                              |                                     |
-| `created_at`   | `TIMESTAMPTZ`    |                                        |                                     |
+Public Brazilian holidays table (as in generated).
 
-### 4.7 `ai_usage_logs` — Logging de IA/TTS (core observability)
+### 4.7 `service_switches`
 
-Toda chamada ao LLM, TTS ou STT é registrada. Consumido por relatório do terapeuta **e** pela interface admin.
-
-| Coluna           | Tipo               | Constraints                      | Observações                              |
-| ---------------- | ------------------ | -------------------------------- | ---------------------------------------- |
-| `id`             | `UUID`             | PK                               |                                          |
-| `clinic_id`      | `UUID`             | FK `clinics(id)` `ON DELETE SET NULL` | null permitido para logs do admin    |
-| `therapist_id`   | `UUID`             | FK `therapists(id)` `ON DELETE SET NULL` |                                  |
-| `call_type`      | `ai_call_type`     | `NOT NULL`                       |                                          |
-| `provider`       | `TEXT`             | `NOT NULL`                       | Ex.: `openai`, `anthropic`, `elevenlabs` |
-| `model`          | `TEXT`             |                                  | Ex.: `gpt-4o-mini`, `eleven_turbo_v2_5`  |
-| `input_tokens`   | `INTEGER`          | `DEFAULT 0`                      |                                          |
-| `output_tokens`  | `INTEGER`          | `DEFAULT 0`                      |                                          |
-| `characters`     | `INTEGER`          | `DEFAULT 0`                      | Para TTS                                 |
-| `cost_usd`       | `NUMERIC(12,6)`    | `DEFAULT 0`                      |                                          |
-| `duration_ms`    | `INTEGER`          |                                  |                                          |
-| `status`         | `TEXT`             | `DEFAULT 'success'`              | `success` ou `error`                     |
-| `error_message`  | `TEXT`             |                                  |                                          |
-| `metadata`       | `JSONB`            | `DEFAULT '{}'::jsonb`            | livre (request_id, etc.)                 |
-| `created_at`     | `TIMESTAMPTZ`      | `DEFAULT NOW()`                  |                                          |
-
-### 4.8 `platform_reports` — Relatórios admin
-
-| Coluna         | Tipo            | Constraints   | Observações                                  |
-| -------------- | --------------- | ------------- | -------------------------------------------- |
-| `id`           | `UUID`          | PK            |                                              |
-| `report_type`  | `TEXT`          | `NOT NULL`    | `revenue`, `ai_usage`, `churn`, `mrr`, etc.  |
-| `period_start` | `DATE`          |               |                                              |
-| `period_end`   | `DATE`          |               |                                              |
-| `data`         | `JSONB`         | `NOT NULL`    | payload livre                                |
-| `generated_at` | `TIMESTAMPTZ`   | `DEFAULT NOW()` |                                            |
-
-### 4.9 `chat_conversations` / `chat_messages` — Assistente IA
-
-Persistência de conversas; estado *quente* fica no Redis (TTL curto).
-
-| `chat_conversations`    | Tipo           | Notas                         |
-| ----------------------- | -------------- | ----------------------------- |
-| `id`                    | `UUID`         | PK                            |
-| `clinic_id`             | `UUID`         | FK                            |
-| `therapist_id`          | `UUID`         | FK                            |
-| `title`                 | `TEXT`         |                               |
-| `created_at`/`updated_at` | `TIMESTAMPTZ` |                             |
-
-| `chat_messages`  | Tipo                  | Notas                                  |
-| ---------------- | --------------------- | -------------------------------------- |
-| `id`             | `UUID`                | PK                                     |
-| `conversation_id`| `UUID`                | FK `chat_conversations(id)` `CASCADE`  |
-| `role`           | `chat_message_role`   |                                        |
-| `content`        | `TEXT`                | `NOT NULL`                             |
-| `tts_audio_url`  | `TEXT`                | URL em Supabase Storage (se gerado)    |
-| `metadata`       | `JSONB`               | `DEFAULT '{}'::jsonb`                  |
-| `created_at`     | `TIMESTAMPTZ`         |                                        |
+Kill-switch registry (as in generated).
 
 ---
 
-## 5. Funções auxiliares (SECURITY DEFINER)
+## 5. Helper Functions (SECURITY DEFINER)
 
-| Função                  | Retorno   | Descrição                                      |
-| ----------------------- | --------- | ---------------------------------------------- |
-| `current_clinic_id()`   | `UUID`    | `clinic_id` do terapeuta autenticado           |
-| `is_admin()`            | `BOOLEAN` | `TRUE` se `auth.uid()` ∈ `admins`              |
-| `set_updated_at()`      | trigger   | Atualiza `updated_at = NOW()` em UPDATE        |
+- `current_clinic_id()`
+- `is_admin()`
+- `set_updated_at()`
 
 ---
 
 ## 6. Row Level Security (RLS)
 
-### Regra geral
-**Todas** as tabelas de domínio têm `RLS ENABLED`. O padrão é:
-
-```
-USING (clinic_id = current_clinic_id() OR is_admin())
-```
-
-### Matriz de acesso
-
-| Tabela                | Psicólogo (SELECT)         | Psicólogo (INSERT/UPDATE/DELETE) | Admin            |
-| --------------------- | -------------------------- | -------------------------------- | ---------------- |
-| `clinics`             | apenas a própria           | a própria                        | todas            |
-| `therapists`          | próprio + mesma clínica    | apenas o próprio                 | todos            |
-| `admins`              | ❌                         | ❌                               | todos            |
-| `patients`            | `clinic_id = current`      | `clinic_id = current`            | todos            |
-| `sessions`            | `clinic_id = current`      | `clinic_id = current`            | todos            |
-| `finance_entries`     | `clinic_id = current`      | `clinic_id = current`            | todos            |
-| `ai_usage_logs`       | `clinic_id = current`      | `clinic_id = current`            | todos            |
-| `platform_reports`    | ❌                         | ❌                               | tudo             |
-| `chat_conversations`  | `clinic_id = current`      | `clinic_id = current`            | todos            |
-| `chat_messages`       | via conversation → clínica | via conversation → clínica       | todos            |
+Same matrix as in the attached file (detailed Portuguese version kept as reference).
 
 ---
 
-## 7. Criptografia LGPD (`pgcrypto`)
+## 7. LGPD Encryption, Indexes, Realtime, Deletion Policy
 
-**Chave** armazenada no Supabase Vault como secret `ENCRYPTION_KEY`, nunca no código.
+→ Same as attached + updates from migrations.
 
-```sql
--- gravação
-UPDATE patients SET cpf_encrypted = pgp_sym_encrypt($1::text, (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'ENCRYPTION_KEY'))
-WHERE id = $2;
+**Notes**
 
--- leitura (somente via função SECURITY DEFINER exposta ao dono)
-SELECT pgp_sym_decrypt(cpf_encrypted, (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'ENCRYPTION_KEY'))::text AS cpf
-FROM patients WHERE id = $1 AND clinic_id = current_clinic_id();
-```
-
-Campos criptografados:
-- `therapists.cpf_encrypted`, `therapists.google_refresh_token_encrypted`
-- `patients.cpf_encrypted`, `patients.notes_encrypted`
-- `sessions.notes_encrypted`
-
----
-
-## 8. Índices
-
-| Índice                                     | Propósito                                       |
-| ------------------------------------------ | ----------------------------------------------- |
-| `idx_patients_therapist`                   | listar pacientes do terapeuta                   |
-| `idx_patients_clinic`                      | consultas agregadas por clínica                 |
-| `idx_sessions_therapist_scheduled`         | agenda (datetime range)                         |
-| `idx_sessions_patient`                     | histórico do paciente                           |
-| `idx_sessions_calendar_event` (`UNIQUE`)   | idempotência da sincronização Google Calendar   |
-| `idx_finance_therapist_occurred`           | relatórios por período                          |
-| `idx_ai_logs_clinic_created`               | custos por mês / clínica                        |
-| `idx_chat_conv_therapist_updated`          | listagem de conversas recentes                  |
-| `idx_chat_msg_conversation_created`        | paginação reversa de mensagens                  |
-
----
-
-## 9. Realtime
-
-Canais habilitados (Supabase Realtime):
-
-- `sessions` — dashboard e agenda
-- `patients` — atualizações ao vivo
-- `chat_messages` — streaming do assistente
-
----
-
-## 10. Apagamento & retenção (LGPD art. 16)
-
-- `patients.active = FALSE` → soft-delete (dados mantidos para obrigação fiscal).
-- Job mensal (Supabase Edge Function) executa **hard delete** de pacientes inativos há **mais de 5 anos** (prazo contábil brasileiro).
-- `ai_usage_logs` retidos por **24 meses**; após isso, agregados em `platform_reports` e apagados.
+- All migrations are timestamp-prefixed.
+- Prefer `gen_random_uuid()` from `pgcrypto`.
+- `working_hours_start` / `working_hours_end` added to `clinics` (7-21 default).

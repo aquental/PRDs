@@ -34,7 +34,7 @@
 	<div>
 		<p class="mb-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Contas ativas</p>
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-			<section class="surface p-5">
+			<a href="/admin/data?tab=clinicas" class="surface p-5 transition hover:ring-1 hover:ring-primary/30">
 				<div class="flex items-start justify-between">
 					<div>
 						<p class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Clínicas</p>
@@ -46,9 +46,9 @@
 						<Buildings size={20} class="text-primary" weight="duotone" />
 					</span>
 				</div>
-			</section>
+			</a>
 
-			<section class="surface p-5">
+			<a href="/admin/data?tab=terapeutas" class="surface p-5 transition hover:ring-1 hover:ring-primary/30">
 				<div class="flex items-start justify-between">
 					<div>
 						<p class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Terapeutas</p>
@@ -60,9 +60,9 @@
 						<Users size={20} class="text-primary" weight="duotone" />
 					</span>
 				</div>
-			</section>
+			</a>
 
-			<section class="surface p-5">
+			<a href="/admin/data?tab=pacientes" class="surface p-5 transition hover:ring-1 hover:ring-primary/30">
 				<div class="flex items-start justify-between">
 					<div>
 						<p class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Pacientes</p>
@@ -74,7 +74,7 @@
 						<Heartbeat size={20} class="text-primary" weight="duotone" />
 					</span>
 				</div>
-			</section>
+			</a>
 
 			<!-- AI calls: secondary accent to distinguish from domain counts -->
 			<section class="surface border-l-4 border-l-secondary p-5">
