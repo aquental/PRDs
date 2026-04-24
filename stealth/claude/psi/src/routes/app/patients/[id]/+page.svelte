@@ -5,7 +5,8 @@
 	import Button from '$lib/ui/Button.svelte';
 	import { enhance } from '$app/forms';
 	import { formatBRL, formatDateTime, formatPhone } from '$lib/utils/format';
-	import { PencilSimple } from 'phosphor-svelte';
+	import { PencilSimple, Warning, CircleNotch, WarningCircle, Plus, Trash, MapPin, UsersThree } from 'phosphor-svelte';
+	import { PUBLIC_CEP_API_URL } from '$env/static/public';
 
 	interface Session {
 		id: string;
@@ -14,6 +15,21 @@
 		fee: number | null;
 		status: string;
 		paid: boolean;
+	}
+	interface Relative {
+		id: string;
+		nome: string;
+		telefone: string | null;
+		endereco: string | null;
+	}
+	interface PatientAddress {
+		patient_id: string;
+		logradouro: string;
+		numero: string | null;
+		complemento: string | null;
+		cep: string;
+		cidade: string;
+		estado: string;
 	}
 	interface Props {
 		data: {
@@ -28,8 +44,11 @@
 				google_calendar_attendee_email: string | null;
 			};
 			sessions: Session[];
+			address: PatientAddress | null;
+			relatives: Relative[];
+			cepEnabled: boolean;
 		};
-		form: { error?: unknown; success?: boolean } | null;
+		form: { error?: unknown; success?: boolean | string } | null;
 	}
 	let { data, form }: Props = $props();
 
@@ -41,6 +60,67 @@
 	let sessions_per_month = $state(untrack(() => data.patient.sessions_per_month.toString()));
 	let gcal_email = $state(untrack(() => data.patient.google_calendar_attendee_email ?? ''));
 	let active = $state(untrack(() => data.patient.active));
+
+	// ── Tabs ──────────────────────────────────────────────
+	type Tab = 'address' | 'relatives';
+	let activeTab = $state<Tab>('address');
+
+	// ── Endereço ─────────────────────────────────────────
+	let addrLogradouro = $state(untrack(() => data.address?.logradouro ?? ''));
+	let addrNumero = $state(untrack(() => data.address?.numero ?? ''));
+	let addrComplemento = $state(untrack(() => data.address?.complemento ?? ''));
+	let addrCep = $state(untrack(() => data.address?.cep ?? ''));
+	let addrCidade = $state(untrack(() => data.address?.cidade ?? ''));
+	let addrEstado = $state(untrack(() => data.address?.estado ?? ''));
+
+	let zipLoading = $state(false);
+	const zipDigits = $derived(addrCep.replace(/\D/g, ''));
+	const zipInvalid = $derived(zipDigits.length > 0 && zipDigits.length < 8);
+
+	function formatZip(v: string) {
+		const d = v.replace(/\D/g, '').slice(0, 8);
+		return d.replace(/(\d{5})(\d)/, '$1-$2');
+	}
+
+	async function onCepInput(e: Event) {
+		addrCep = formatZip((e.target as HTMLInputElement).value);
+		const digits = addrCep.replace(/\D/g, '');
+		if (digits.length !== 8) return;
+		zipLoading = true;
+		try {
+			const res = await fetch(`${PUBLIC_CEP_API_URL}/${digits}/json/`);
+			const json = await res.json();
+			if (!json.erro) {
+				addrLogradouro = json.logradouro ?? addrLogradouro;
+				addrCidade = json.localidade ?? addrCidade;
+				addrEstado = json.uf ?? addrEstado;
+				addrComplemento = json.complemento || addrComplemento;
+			}
+		} catch {
+			// silencia erro de rede
+		} finally {
+			zipLoading = false;
+		}
+	}
+
+	// ── Parentes ─────────────────────────────────────────
+	let newRelNome = $state('');
+	let newRelTelefone = $state('');
+	let newRelEndereco = $state('');
+	let editingRelativeId = $state<string | null>(null);
+	let editRelNome = $state('');
+	let editRelTelefone = $state('');
+	let editRelEndereco = $state('');
+
+	function startEditRelative(r: Relative) {
+		editingRelativeId = r.id;
+		editRelNome = r.nome;
+		editRelTelefone = r.telefone ?? '';
+		editRelEndereco = r.endereco ?? '';
+	}
+	function cancelEditRelative() {
+		editingRelativeId = null;
+	}
 
 	const statusLabel: Record<string, string> = {
 		scheduled: 'Agendada',
@@ -57,6 +137,14 @@
 	};
 
 	const paidSessions = $derived(data.sessions.filter((s) => s.paid).length);
+
+	const formattedAddress = $derived.by(() => {
+		const a = data.address;
+		if (!a) return '';
+		const l1 = [a.logradouro, a.numero].filter(Boolean).join(', ');
+		const l2 = [a.cidade, a.estado].filter(Boolean).join(' - ');
+		return [l1, a.complemento, l2, a.cep].filter(Boolean).join(' • ');
+	});
 </script>
 
 <div class="space-y-8">
@@ -131,9 +219,13 @@
 					</dd>
 				</div>
 				<div>
-					<dt class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Google Calendar</dt>
+					<dt class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Endereço</dt>
+					<dd class="mt-0.5 font-medium text-ink dark:text-bg">{formattedAddress || '—'}</dd>
+				</div>
+				<div>
+					<dt class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Parentes</dt>
 					<dd class="mt-0.5 font-medium text-ink dark:text-bg">
-						{data.patient.google_calendar_attendee_email ?? '—'}
+						{data.relatives.length > 0 ? `${data.relatives.length} cadastrado(s)` : '—'}
 					</dd>
 				</div>
 			</dl>
@@ -168,6 +260,216 @@
 				</div>
 			</dl>
 		</Card>
+	</div>
+
+	<!-- Abas: Endereço / Parentes -->
+	<div>
+		<div class="flex gap-2 border-b border-primary-100/40 dark:border-white/5">
+			<button
+				type="button"
+				onclick={() => (activeTab = 'address')}
+				class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition
+					{activeTab === 'address'
+						? 'border-b-2 border-primary text-primary'
+						: 'border-b-2 border-transparent text-ink-muted hover:text-ink dark:hover:text-bg'}"
+			>
+				<MapPin size={16} />
+				Endereço
+			</button>
+			<button
+				type="button"
+				onclick={() => (activeTab = 'relatives')}
+				class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition
+					{activeTab === 'relatives'
+						? 'border-b-2 border-primary text-primary'
+						: 'border-b-2 border-transparent text-ink-muted hover:text-ink dark:hover:text-bg'}"
+			>
+				<UsersThree size={16} />
+				Parentes
+				{#if data.relatives.length > 0}
+					<span class="rounded-full bg-primary-50 px-2 text-xs text-primary dark:bg-primary-900/40 dark:text-primary-200">
+						{data.relatives.length}
+					</span>
+				{/if}
+			</button>
+		</div>
+
+		<div class="mt-4">
+			{#if activeTab === 'address'}
+				<Card title={data.address ? 'Editar endereço' : 'Adicionar endereço'}>
+					<form
+						method="POST"
+						action="?/updateAddress"
+						use:enhance={() => {
+							return async ({ update }) => {
+								await update({ reset: false });
+							};
+						}}
+						class="grid gap-4 sm:grid-cols-6"
+					>
+						<div class="sm:col-span-2">
+							<label for="cep" class="label flex items-center gap-1">
+								CEP<span class="text-secondary">*</span>
+								{#if zipLoading}
+									<CircleNotch size={14} class="animate-spin text-primary" />
+								{:else if zipInvalid}
+									<Warning size={14} class="text-amber-500" weight="fill" />
+									<span class="text-amber-500">CEP incompleto</span>
+								{/if}
+							</label>
+							<input
+								id="cep"
+								name="cep"
+								bind:value={addrCep}
+								placeholder="00000-000"
+								required
+								oninput={data.cepEnabled ? onCepInput : undefined}
+								class="input w-full"
+							/>
+							{#if !data.cepEnabled}
+								<p class="mt-1 flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400">
+									<WarningCircle size={12} weight="fill" />
+									Busca automática de endereço indisponível.
+								</p>
+							{/if}
+						</div>
+
+						<div class="sm:col-span-4">
+							<Input label="Logradouro" name="logradouro" bind:value={addrLogradouro} required />
+						</div>
+
+						<div class="sm:col-span-2">
+							<Input label="Número" name="numero" bind:value={addrNumero} />
+						</div>
+						<div class="sm:col-span-4">
+							<Input label="Complemento" name="complemento" bind:value={addrComplemento} />
+						</div>
+
+						<div class="sm:col-span-4">
+							<Input label="Cidade" name="cidade" bind:value={addrCidade} required />
+						</div>
+						<div class="sm:col-span-2">
+							<Input label="Estado" name="estado" bind:value={addrEstado} placeholder="SP" required />
+						</div>
+
+						<div class="flex items-center justify-between sm:col-span-6">
+							<div class="text-sm">
+								{#if form?.success === 'address'}
+									<span class="text-green-600 dark:text-green-400">Endereço salvo.</span>
+								{:else if form?.error}
+									<span class="text-red-600">{JSON.stringify(form.error)}</span>
+								{/if}
+							</div>
+							<Button type="submit">Salvar endereço</Button>
+						</div>
+					</form>
+				</Card>
+			{:else}
+				<div class="space-y-4">
+					{#if data.relatives.length === 0}
+						<Card>
+							<p class="py-4 text-center text-sm text-ink-muted">Nenhum parente cadastrado.</p>
+						</Card>
+					{:else}
+						{#each data.relatives as r (r.id)}
+							<Card>
+								{#if editingRelativeId === r.id}
+									<form
+										method="POST"
+										action="?/updateRelative"
+										use:enhance={() => {
+											return async ({ update }) => {
+												await update({ reset: false });
+												if (!form?.error) editingRelativeId = null;
+											};
+										}}
+										class="grid gap-4 sm:grid-cols-2"
+									>
+										<input type="hidden" name="id" value={r.id} />
+										<Input label="Nome" name="nome" bind:value={editRelNome} required />
+										<Input label="Telefone" name="telefone" bind:value={editRelTelefone} />
+										<div class="sm:col-span-2">
+											<Input label="Endereço" name="endereco" bind:value={editRelEndereco} />
+										</div>
+										<div class="flex justify-end gap-2 sm:col-span-2">
+											<Button variant="ghost" onclick={cancelEditRelative}>Cancelar</Button>
+											<Button type="submit">Salvar</Button>
+										</div>
+									</form>
+								{:else}
+									<div class="flex items-start justify-between gap-4">
+										<div class="flex-1 space-y-1 text-sm">
+											<p class="font-medium text-ink dark:text-bg">{r.nome}</p>
+											<p class="text-ink-muted">
+												{r.telefone ? formatPhone(r.telefone) : 'Sem telefone'}
+											</p>
+											{#if r.endereco}
+												<p class="text-ink-muted">{r.endereco}</p>
+											{/if}
+										</div>
+										<div class="flex gap-2">
+											<Button variant="ghost" onclick={() => startEditRelative(r)}>
+												<PencilSimple size={14} /> Editar
+											</Button>
+											<form
+												method="POST"
+												action="?/deleteRelative"
+												use:enhance={() => {
+													return async ({ update }) => {
+														await update({ reset: false });
+													};
+												}}
+											>
+												<input type="hidden" name="id" value={r.id} />
+												<Button type="submit" variant="ghost">
+													<Trash size={14} /> Remover
+												</Button>
+											</form>
+										</div>
+									</div>
+								{/if}
+							</Card>
+						{/each}
+					{/if}
+
+					<Card title="Adicionar parente">
+						<form
+							method="POST"
+							action="?/addRelative"
+							use:enhance={() => {
+								return async ({ update }) => {
+									await update({ reset: false });
+									if (!form?.error) {
+										newRelNome = '';
+										newRelTelefone = '';
+										newRelEndereco = '';
+									}
+								};
+							}}
+							class="grid gap-4 sm:grid-cols-2"
+						>
+							<Input label="Nome" name="nome" bind:value={newRelNome} required />
+							<Input label="Telefone" name="telefone" bind:value={newRelTelefone} />
+							<div class="sm:col-span-2">
+								<Input label="Endereço" name="endereco" bind:value={newRelEndereco} />
+							</div>
+							<div class="flex items-center justify-between sm:col-span-2">
+								<div class="text-sm">
+									{#if form?.success === 'relative_added'}
+										<span class="text-green-600 dark:text-green-400">Parente adicionado.</span>
+									{:else if form?.error}
+										<span class="text-red-600">{JSON.stringify(form.error)}</span>
+									{/if}
+								</div>
+								<Button type="submit">
+									<Plus size={14} /> Adicionar
+								</Button>
+							</div>
+						</form>
+					</Card>
+				</div>
+			{/if}
+		</div>
 	</div>
 
 	<Card title="Histórico de sessões">
