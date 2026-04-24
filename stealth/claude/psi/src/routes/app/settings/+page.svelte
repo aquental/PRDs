@@ -458,7 +458,7 @@
 						<dt class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Valor da sessão</dt>
 						<dd class="mt-1 font-medium text-ink dark:text-bg">
 							{data.therapist.default_session_fee != null
-								? `R$ ${Number(data.therapist.default_session_fee).toFixed(2).replace('.', ',')}`
+								? formatBRL(Number(data.therapist.default_session_fee))
 								: '—'}
 						</dd>
 					</div>
