@@ -271,124 +271,313 @@ export default function PatientDetailView() {
 
       {/* Contato */}
       {tab === "info" && (
-        <div
-          style={{
-            background: C.surface,
-            border: `1px solid ${C.border}`,
-            borderRadius: 12,
-            padding: 24,
-          }}
-        >
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
-            <Field
-              label="Nome completo"
-              value={editing ? form.name : patient.name}
-              editing={editing}
-              onChange={(v) => setForm((p) => ({ ...p, name: v }))}
-              full
-            />
-            <Field
-              label="Telefone"
-              value={editing ? form.phone : patient.phone}
-              editing={editing}
-              onChange={(v) => setForm((p) => ({ ...p, phone: v }))}
-            />
-            <Field
-              label="Email"
-              value={editing ? form.email : patient.email}
-              editing={editing}
-              onChange={(v) => setForm((p) => ({ ...p, email: v }))}
-            />
-            <Field
-              label="Sessões por mês"
-              value={editing ? form.sessionsPerMonth : patient.sessionsPerMonth}
-              editing={editing}
-              onChange={(v) =>
-                setForm((p) => ({ ...p, sessionsPerMonth: Number(v) }))
-              }
-              type="number"
-            />
-            <Field
-              label="Valor por sessão (R$)"
-              value={editing ? form.valuePerSession : patient.valuePerSession}
-              editing={editing}
-              onChange={(v) =>
-                setForm((p) => ({ ...p, valuePerSession: Number(v) }))
-              }
-              type="number"
-            />
-          </div>
-
-          {/* Endereço (1:1 patient_addresses) */}
-          <h3
+        <>
+          <div
             style={{
-              fontSize: 13,
-              color: C.muted,
-              textTransform: "uppercase",
-              letterSpacing: 0.5,
-              marginTop: 28,
-              marginBottom: 14,
-              fontWeight: 500,
+              background: C.surface,
+              border: `1px solid ${C.border}`,
+              borderRadius: 12,
+              padding: 24,
             }}
           >
-            Endereço
-          </h3>
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 18 }}>
-            <Field
-              label="Rua"
-              value={currentAddress.street}
-              editing={editing}
-              onChange={(v) => setAddr("street", v)}
-            />
-            <Field
-              label="Número"
-              value={currentAddress.number}
-              editing={editing}
-              onChange={(v) => setAddr("number", v)}
-            />
-            <Field
-              label="Complemento"
-              value={currentAddress.complement}
-              editing={editing}
-              onChange={(v) => setAddr("complement", v)}
-              full
-            />
-            <Field
-              label="CEP"
-              value={currentAddress.zip}
-              editing={editing}
-              onChange={(v) => setAddr("zip", v)}
-            />
-            <Field
-              label="Cidade"
-              value={currentAddress.city}
-              editing={editing}
-              onChange={(v) => setAddr("city", v)}
-            />
-            <Field
-              label="Estado"
-              value={currentAddress.state}
-              editing={editing}
-              onChange={(v) => setAddr("state", v)}
-            />
-          </div>
-          {!editing && formatAddress(patient.address) && (
-            <div style={{ marginTop: 14, fontSize: 13, color: C.muted }}>
-              {formatAddress(patient.address)}
+            <div
+              style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}
+            >
+              <Field
+                label="Nome completo"
+                value={editing ? form.name : patient.name}
+                editing={editing}
+                onChange={(v) => setForm((p) => ({ ...p, name: v }))}
+                full
+              />
+              <Field
+                label="Telefone"
+                value={editing ? form.phone : patient.phone}
+                editing={editing}
+                onChange={(v) => setForm((p) => ({ ...p, phone: v }))}
+              />
+              <Field
+                label="Email"
+                value={editing ? form.email : patient.email}
+                editing={editing}
+                onChange={(v) => setForm((p) => ({ ...p, email: v }))}
+              />
+              <Field
+                label="Sessões por mês"
+                value={
+                  editing ? form.sessionsPerMonth : patient.sessionsPerMonth
+                }
+                editing={editing}
+                onChange={(v) =>
+                  setForm((p) => ({ ...p, sessionsPerMonth: Number(v) }))
+                }
+                type="number"
+              />
+              <Field
+                label="Valor por sessão (R$)"
+                value={editing ? form.valuePerSession : patient.valuePerSession}
+                editing={editing}
+                onChange={(v) =>
+                  setForm((p) => ({ ...p, valuePerSession: Number(v) }))
+                }
+                type="number"
+              />
             </div>
-          )}
 
-          <div style={{ marginTop: 24 }}>
-            <Field
-              label="Observações clínicas"
-              value={editing ? form.notes : patient.notes}
-              editing={editing}
-              onChange={(v) => setForm((p) => ({ ...p, notes: v }))}
-              full
-              rows={3}
-            />
+            <div style={{ marginTop: 24 }}>
+              <Field
+                label="Observações clínicas"
+                value={editing ? form.notes : patient.notes}
+                editing={editing}
+                onChange={(v) => setForm((p) => ({ ...p, notes: v }))}
+                full
+                rows={3}
+              />
+            </div>
           </div>
-        </div>
+
+          {/* Endereço e Parentes — patient_addresses (1:1) + patient_relatives (1:N) */}
+          <div
+            style={{
+              background: C.surface,
+              border: `1px solid ${C.border}`,
+              borderRadius: 12,
+              padding: 24,
+              marginTop: 18,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 16,
+              }}
+            >
+              <h3 style={{ fontSize: 15, color: C.text, fontWeight: 500 }}>
+                Endereço e Parentes
+              </h3>
+              {editing && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: C.primary,
+                    background: C.primaryLight,
+                    padding: "2px 10px",
+                    borderRadius: 999,
+                  }}
+                >
+                  Modo de edição
+                </span>
+              )}
+            </div>
+
+            {/* Endereço (1:1 patient_addresses) */}
+            <h4
+              style={{
+                fontSize: 12,
+                color: C.muted,
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+                marginBottom: 12,
+                fontWeight: 500,
+              }}
+            >
+              Endereço
+            </h4>
+            <div
+              style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 18 }}
+            >
+              <Field
+                label="Rua"
+                value={currentAddress.street}
+                editing={editing}
+                onChange={(v) => setAddr("street", v)}
+              />
+              <Field
+                label="Número"
+                value={currentAddress.number}
+                editing={editing}
+                onChange={(v) => setAddr("number", v)}
+              />
+              <Field
+                label="Complemento"
+                value={currentAddress.complement}
+                editing={editing}
+                onChange={(v) => setAddr("complement", v)}
+                full
+              />
+              <Field
+                label="CEP"
+                value={currentAddress.zip}
+                editing={editing}
+                onChange={(v) => setAddr("zip", v)}
+              />
+              <Field
+                label="Cidade"
+                value={currentAddress.city}
+                editing={editing}
+                onChange={(v) => setAddr("city", v)}
+              />
+              <Field
+                label="Estado"
+                value={currentAddress.state}
+                editing={editing}
+                onChange={(v) => setAddr("state", v)}
+              />
+            </div>
+            {!editing && formatAddress(patient.address) && (
+              <div style={{ marginTop: 14, fontSize: 13, color: C.muted }}>
+                {formatAddress(patient.address)}
+              </div>
+            )}
+
+            {/* Parentes (1:N patient_relatives) */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginTop: 28,
+                marginBottom: 12,
+              }}
+            >
+              <h4
+                style={{
+                  fontSize: 12,
+                  color: C.muted,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                  fontWeight: 500,
+                  margin: 0,
+                }}
+              >
+                Parentes
+              </h4>
+              <button
+                onClick={openAddRelative}
+                style={{
+                  padding: "5px 12px",
+                  background: C.primary,
+                  border: "none",
+                  borderRadius: 8,
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontFamily: "inherit",
+                }}
+              >
+                + Adicionar
+              </button>
+            </div>
+
+            {(!patient.relatives || patient.relatives.length === 0) && (
+              <div
+                style={{
+                  padding: 20,
+                  textAlign: "center",
+                  color: C.muted,
+                  fontSize: 13,
+                  border: `1px dashed ${C.border}`,
+                  borderRadius: 10,
+                }}
+              >
+                Nenhum parente cadastrado.
+              </div>
+            )}
+
+            {patient.relatives && patient.relatives.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {patient.relatives.map((r) => (
+                  <div
+                    key={r.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: 12,
+                      border: `1px solid ${C.borderLight}`,
+                      borderRadius: 10,
+                      background: C.bg,
+                    }}
+                  >
+                    <Avatar name={r.name} size={32} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 500,
+                            color: C.text,
+                          }}
+                        >
+                          {r.name}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            color: C.primary,
+                            background: C.primaryLight,
+                            padding: "2px 8px",
+                            borderRadius: 999,
+                            textTransform: "capitalize",
+                          }}
+                        >
+                          {r.relationship}
+                        </span>
+                      </div>
+                      <div
+                        style={{ fontSize: 12, color: C.muted, marginTop: 2 }}
+                      >
+                        {r.phone || "—"}
+                        {r.email ? ` • ${r.email}` : ""}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        onClick={() => openEditRelative(r)}
+                        style={{
+                          padding: "4px 10px",
+                          border: `1px solid ${C.border}`,
+                          borderRadius: 6,
+                          background: C.surface,
+                          cursor: "pointer",
+                          fontSize: 12,
+                          color: C.muted,
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => deleteRelative(r.id)}
+                        style={{
+                          padding: "4px 10px",
+                          border: `1px solid ${C.border}`,
+                          borderRadius: 6,
+                          background: C.surface,
+                          cursor: "pointer",
+                          fontSize: 12,
+                          color: C.danger,
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* Família */}
