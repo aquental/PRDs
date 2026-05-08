@@ -1,0 +1,642 @@
+# QUALITY_METRICS.PRD
+
+## TL;DR
+
+Este documento define a estratégia de métricas de qualidade para um produto de chat com IA. O objetivo é criar um sistema confiável para medir utilidade real, confiança, precisão, experiência do usuário e impacto no negócio — indo além de métricas superficiais como número de mensagens ou MAU.
+
+A proposta central:
+
+> O sucesso de um produto de IA não é medido pelo quanto o usuário conversa. É medido pelo quanto ele consegue resolver.
+
+Este PRD estabelece:
+
+* Quais métricas devem existir
+* Como instrumentar eventos
+* Como medir qualidade objetiva e subjetiva
+* Como detectar falhas silenciosas
+* Como operacionalizar melhoria contínua do modelo e da experiência
+
+---
+
+# Problema
+
+Hoje, produtos de IA frequentemente operam com baixa visibilidade sobre qualidade real.
+
+Times acompanham:
+
+* número de chats
+* DAU/MAU
+* retenção
+* tempo de sessão
+
+Mas não conseguem responder perguntas críticas:
+
+* O usuário realmente resolveu seu problema?
+* A resposta estava correta?
+* O usuário confiou na resposta?
+* O usuário precisou reescrever prompts várias vezes?
+* A IA ajudou ou apenas gerou texto?
+
+Isso cria três riscos graves:
+
+1. Crescimento sem valor real
+2. Erosão de confiança do usuário
+3. Alto custo operacional sem retenção sustentável
+
+Precisamos construir uma camada estruturada de métricas de qualidade que permita:
+
+* medir utilidade real
+* identificar falhas do modelo
+* priorizar melhorias
+* reduzir alucinações
+* aumentar retenção baseada em valor
+
+---
+
+# Objetivos
+
+## Objetivos de Negócio
+
+* Aumentar retenção de usuários
+* Melhorar conversão para plano pago
+* Reduzir churn causado por baixa confiança
+* Criar vantagem competitiva baseada em qualidade percebida
+* Melhorar eficiência operacional do custo de inferência
+
+---
+
+## Objetivos do Usuário
+
+* Receber respostas úteis rapidamente
+* Confiar nas respostas da IA
+* Resolver tarefas com menos esforço
+* Evitar necessidade de múltiplos retries
+* Sentir consistência e previsibilidade no produto
+
+---
+
+## Não Objetivos
+
+Este projeto NÃO irá:
+
+* Treinar novos modelos fundacionais
+* Construir benchmark acadêmico de LLM
+* Substituir avaliação humana completa
+* Medir performance apenas via thumbs up/down
+* Otimizar exclusivamente para engajamento
+
+---
+
+# Hipótese Principal
+
+Se conseguirmos medir qualidade real de forma consistente, então conseguiremos:
+
+* melhorar retenção
+* aumentar confiança
+* reduzir falhas silenciosas
+* acelerar evolução do produto
+* priorizar melhorias com mais precisão
+
+---
+
+# Definição de Qualidade
+
+Qualidade em um produto de IA será definida como:
+
+> “A capacidade da IA ajudar usuários a alcançar resultados corretos, úteis e confiáveis com mínimo esforço.”
+
+Qualidade não é:
+
+* respostas longas
+* linguagem sofisticada
+* número de mensagens
+* criatividade isolada
+
+---
+
+# Métricas Principais
+
+# 1. Successful Outcome Rate (North Star)
+
+## Definição
+
+Percentual de conversas onde o usuário atingiu o objetivo esperado.
+
+## Fórmula
+
+```text
+Successful Outcome Rate =
+Conversas com sucesso / Conversas totais
+```
+
+## Sinais utilizados
+
+### Explícitos
+
+* thumbs up
+* avaliação positiva
+* CSAT pós interação
+
+### Implícitos
+
+* copy action
+* export action
+* share action
+* execução de workflow
+* retorno ao produto
+* ausência de retries imediatos
+
+---
+
+# 2. Retry Rate
+
+## Definição
+
+Percentual de prompts onde o usuário precisou reformular a pergunta ou regenerar resposta.
+
+## Importância
+
+Alta taxa de retry geralmente indica:
+
+* resposta ruim
+* baixa precisão
+* UX confusa
+* prompt misunderstanding
+
+## Eventos
+
+```text
+message_retry
+response_regenerated
+prompt_edited
+```
+
+---
+
+# 3. Silent Failure Rate
+
+## Definição
+
+Casos onde:
+
+* o usuário aceitou a resposta
+* mas a resposta estava errada
+
+## Importância
+
+Esta é a métrica mais perigosa do sistema.
+
+Falhas silenciosas destroem confiança lentamente sem gerar feedback explícito.
+
+## Como medir
+
+### Human Review
+
+Amostragem periódica de conversas.
+
+### Benchmark Tasks
+
+Conjunto controlado de tarefas com respostas verificáveis.
+
+### Downstream Validation
+
+Verificação posterior de resultados.
+
+---
+
+# 4. Trust Score
+
+## Objetivo
+
+Medir confiança do usuário na IA.
+
+## Inputs
+
+* aceitação da resposta
+* citation clicks
+* follow-up confidence
+* feedback explícito
+* abandono após resposta
+* correções feitas pelo usuário
+
+## Escala
+
+0–100
+
+---
+
+# 5. Time to First Value (TTFV)
+
+## Definição
+
+Tempo entre:
+
+* abertura do produto
+* primeiro resultado útil percebido
+
+## Meta Inicial
+
+< 60 segundos
+
+## Eventos relevantes
+
+```text
+session_started
+first_prompt_sent
+value_event_triggered
+```
+
+---
+
+# 6. Task Completion Rate
+
+## Definição
+
+Percentual de tarefas concluídas com sucesso.
+
+## Exemplos
+
+### Assistente de escrita
+
+* documento exportado
+
+### Coding assistant
+
+* código aceito
+
+### Pesquisa
+
+* resposta salva
+
+### Workflow AI
+
+* automação executada
+
+---
+
+# 7. Hallucination Rate
+
+## Definição
+
+Percentual de respostas factualmente incorretas.
+
+## Classificação
+
+### Crítica
+
+Erro grave com potencial impacto alto.
+
+### Moderada
+
+Erro relevante mas recuperável.
+
+### Baixa
+
+Imprecisão pequena sem impacto significativo.
+
+---
+
+# 8. Latência
+
+## Métricas
+
+### Time to First Token
+
+Velocidade percebida inicial.
+
+### Time to Complete Response
+
+Tempo total da resposta.
+
+### Streaming Responsiveness
+
+Fluidez da resposta incremental.
+
+---
+
+# 9. User Effort Score
+
+## Objetivo
+
+Medir quanto esforço o usuário precisou fazer para resolver algo.
+
+## Sinais
+
+* número de prompts
+* tamanho médio do prompt
+* retries
+* reformulações
+* abandonos
+
+## Insight importante
+
+Produtos de IA maduros reduzem esforço ao longo do tempo.
+
+---
+
+# 10. Retenção Baseada em Valor
+
+## Não medir apenas retorno.
+
+Precisamos medir:
+
+> usuários retornando após sucesso real.
+
+## Métricas
+
+* retained successful users
+* retained high-trust users
+* retained workflow users
+
+---
+
+# Taxonomia de Eventos
+
+## Sessão
+
+```text
+session_started
+session_ended
+```
+
+## Conversa
+
+```text
+conversation_created
+conversation_completed
+conversation_abandoned
+```
+
+## Mensagens
+
+```text
+prompt_sent
+response_generated
+response_stream_started
+response_stream_completed
+```
+
+## Qualidade
+
+```text
+thumbs_up
+thumbs_down
+hallucination_reported
+response_corrected
+retry_triggered
+```
+
+## Valor
+
+```text
+copy_output
+export_output
+workflow_completed
+task_completed
+shared_output
+```
+
+---
+
+# UX de Coleta de Feedback
+
+## Princípios
+
+* minimizar fricção
+* coletar feedback contextual
+* evitar pesquisas longas
+* capturar sinais implícitos
+
+---
+
+## Estratégia Recomendada
+
+### Inline Feedback
+
+👍 👎 simples após resposta.
+
+### Contextual Prompt
+
+Perguntar:
+“Isso resolveu seu problema?”
+
+### Smart Sampling
+
+Solicitar feedback apenas em subset de usuários.
+
+---
+
+# Dashboard Executivo
+
+## Produto
+
+| Métrica                  | Objetivo            |
+| ------------------------ | ------------------- |
+| Successful Outcome Rate  | Qualidade geral     |
+| TTFV                     | Velocidade de valor |
+| Retry Rate               | Fricção             |
+| Trust Score              | Confiança           |
+| Task Completion Rate     | Efetividade         |
+| Hallucination Rate       | Precisão            |
+| D30 Retention            | Retenção            |
+| Cost per Successful Task | Eficiência          |
+
+---
+
+# Dashboard Operacional
+
+## Engenharia
+
+* latency p50/p95
+* timeout rate
+* token usage
+* inference cost
+* streaming failures
+
+## AI/ML
+
+* hallucination rate
+* benchmark accuracy
+* safety incidents
+* retrieval precision
+
+## Produto
+
+* retries
+* abandonos
+* workflows concluídos
+* feature adoption
+
+---
+
+# Estratégia de Avaliação Humana
+
+## Processo
+
+### 1. Sampling automático
+
+Selecionar subset de conversas.
+
+### 2. Rubrica de avaliação
+
+Avaliar:
+
+* precisão
+* utilidade
+* clareza
+* completude
+* segurança
+* confiança
+
+### 3. Score agregado
+
+Gerar score consolidado por modelo e feature.
+
+---
+
+# Segmentação Recomendada
+
+Todas as métricas devem ser segmentadas por:
+
+* tipo de usuário
+* plano
+* caso de uso
+* modelo utilizado
+* dispositivo
+* idioma
+* tamanho do prompt
+* categoria de tarefa
+
+---
+
+# Alertas Críticos
+
+## Criar alertas automáticos para:
+
+* aumento de hallucination rate
+* queda abrupta de trust score
+* aumento de retries
+* degradação de latência
+* queda de successful outcomes
+
+---
+
+# Considerações Técnicas
+
+## Logging
+
+Todos os eventos devem:
+
+* possuir timestamp
+* conversation_id
+* user_id anonimizado
+* model_version
+* request metadata
+
+---
+
+## Privacidade
+
+* anonimizar dados sensíveis
+* permitir opt-out
+* mascarar PII
+* limitar retenção de prompts
+
+---
+
+## Infraestrutura
+
+Recomendado:
+
+* event streaming pipeline
+* warehouse analítico
+* camada de observabilidade
+* dashboards em tempo real
+
+---
+
+# Riscos
+
+| Risco                           | Mitigação               |
+| ------------------------------- | ----------------------- |
+| Métricas virarem vanity metrics | Foco em outcome         |
+| Feedback explícito insuficiente | Captura implícita       |
+| Alto custo de avaliação humana  | Sampling inteligente    |
+| Incentivos errados para modelos | Métricas balanceadas    |
+| Otimização excessiva para CSAT  | Medir precisão objetiva |
+
+---
+
+# Roadmap
+
+## Fase 1 — Instrumentação
+
+Duração estimada: XX semanas
+
+### Entregas
+
+* event tracking
+* taxonomia
+* dashboards básicos
+* logging estruturado
+
+---
+
+## Fase 2 — Quality Layer
+
+Duração estimada: XX semanas
+
+### Entregas
+
+* trust score
+* retry tracking
+* TTFV
+* task completion metrics
+
+---
+
+## Fase 3 — Human Evaluation
+
+Duração estimada: XX semanas
+
+### Entregas
+
+* review tooling
+* rubricas
+* benchmark dataset
+* silent failure tracking
+
+---
+
+## Fase 4 — Optimization Loop
+
+Duração estimada: XX semanas
+
+### Entregas
+
+* alertas automáticos
+* experimentação
+* model routing optimization
+* quality-based ranking
+
+---
+
+# Narrativa Executiva
+
+Hoje sabemos quantos usuários entram no produto. Não sabemos quantos realmente vencem com ele.
+
+Esse é o gap.
+
+A próxima geração de produtos de IA será definida menos por “quem gera texto melhor” e mais por:
+
+* quem entrega resultados confiáveis
+* quem reduz esforço cognitivo
+* quem cria confiança consistente
+* quem mede qualidade de verdade
+
+Nosso objetivo não é construir apenas um chatbot.
+
+Nosso objetivo é construir um sistema inteligente que usuários escolham incorporar no trabalho e na vida porque ele consistentemente resolve problemas reais.
+
+E isso só acontece quando qualidade deixa de ser subjetiva e passa a ser operacionalizada como parte central do produto.
+
