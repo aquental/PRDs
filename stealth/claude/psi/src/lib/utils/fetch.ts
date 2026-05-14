@@ -10,6 +10,8 @@ export async function fetchWithRetry(
 	init: RequestInit = {},
 	maxRetries = 3
 ): Promise<Response> {
+	// EC-05: maxRetries=0 would throw `undefined`; guard here for a clear error
+	if (maxRetries < 1) throw new RangeError(`maxRetries must be ≥ 1, got ${maxRetries}`);
 	let lastErr: unknown;
 	for (let attempt = 0; attempt < maxRetries; attempt++) {
 		try {

@@ -26,10 +26,18 @@ export function normalizeCPF(cpf: string): string | null {
 	return digits;
 }
 
-/** Formata CPF: 11122233344 -> 111.222.333-44 */
+/**
+ * Formata CPF: 11122233344 -> 111.222.333-44
+ * Aceita dígitos com ou sem pontuação. Preenche zeros à esquerda se < 11 dígitos.
+ * @throws {RangeError} se o input possuir mais de 11 dígitos (EC-04)
+ */
 export function formatCPF(digits: string): string {
-	const d = digits.replace(/\D/g, '').padStart(11, '0').slice(0, 11);
-	return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9, 11)}`;
+	const d = digits.replace(/\D/g, '');
+	if (d.length > 11) {
+		throw new RangeError(`formatCPF: expected ≤ 11 digits, got ${d.length}`);
+	}
+	const padded = d.padStart(11, '0');
+	return `${padded.slice(0, 3)}.${padded.slice(3, 6)}.${padded.slice(6, 9)}-${padded.slice(9, 11)}`;
 }
 
 /** Normaliza telefone BR para dígitos apenas. */
@@ -43,13 +51,37 @@ export function validateRelative(r: Partial<Relative>): r is Relative {
 	       typeof r.relation === 'string' && r.relation.trim().length > 0;
 }
 
-/** Calcula a idade a partir da data de nascimento (ISO YYYY-MM-DD). */
+/**
+ * Calcula a idade a partir da data de nascimento (ISO YYYY-MM-DD).
+ *
+ * Usa métodos UTC em ambos os lados para evitar erros de off-by-one causados
+ * pelo parse de strings de data como UTC midnight enquanto os métodos locais
+ * retornam o dia anterior em fusos horários UTC−.
+ *
+ * EC-07: aniversariantes nascidos em 29/fev têm o aniversário tratado como 28/fev
+ * em anos não-bissextos (convenção jurídica brasileira).
+ */
 export function ageFromBirthDate(birthDate: string, now: Date = new Date()): number | null {
 	const d = new Date(birthDate);
 	if (Number.isNaN(d.getTime())) return null;
-	let age = now.getFullYear() - d.getFullYear();
-	const m = now.getMonth() - d.getMonth();
-	if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
+
+	// Use UTC throughout: date-only strings are parsed as UTC midnight,
+	// so getUTC* avoids a systematic one-day shift in UTC− timezones.
+	let age = now.getUTCFullYear() - d.getUTCFullYear();
+
+	let birthMonth = d.getUTCMonth();
+	let birthDay = d.getUTCDate();
+
+	// EC-07: normalize Feb 29 → Feb 28 when the current year is non-leap
+	if (birthMonth === 1 && birthDay === 29) {
+		const isLeapYear = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+		if (!isLeapYear(now.getUTCFullYear())) {
+			birthDay = 28;
+		}
+	}
+
+	const m = now.getUTCMonth() - birthMonth;
+	if (m < 0 || (m === 0 && now.getUTCDate() < birthDay)) age--;
 	return age < 0 ? null : age;
 }
 
