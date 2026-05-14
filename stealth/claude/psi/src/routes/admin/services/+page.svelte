@@ -1,7 +1,7 @@
-<script module>
+<script module lang="ts">
 	// Module-level state: survives component unmount/remount on navigation.
 	// Keeps the visual state consistent when the user switches tabs and returns.
-	let switchOverrides = $state<Record<string, boolean>>({});
+	let switchOverrides: Record<string, boolean> = $state({});
 </script>
 
 <script lang="ts">
@@ -61,7 +61,7 @@
 		enabling: boolean; // true = está habilitando, false = está desabilitando
 	}
 
-	let pendingToggle = $state<PendingToggle | null>(null);
+	let pendingToggle: PendingToggle | null = $state(null);
 	let dialog: HTMLDialogElement;
 	let toggleForm: HTMLFormElement;
 
