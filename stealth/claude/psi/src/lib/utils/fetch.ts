@@ -1,4 +1,10 @@
-const RETRYABLE = new Set(['ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'ENOTFOUND', 'UND_ERR_SOCKET']);
+const RETRYABLE = new Set([
+  "ECONNRESET",
+  "ETIMEDOUT",
+  "ECONNREFUSED",
+  "ENOTFOUND",
+  "UND_ERR_SOCKET",
+]);
 
 /**
  * Wraps fetch with automatic retry for transient network errors.
@@ -6,25 +12,27 @@ const RETRYABLE = new Set(['ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'ENOTFOUND
  * Non-retryable errors (e.g. auth failures) are thrown immediately.
  */
 export async function fetchWithRetry(
-	url: string | URL,
-	init: RequestInit = {},
-	maxRetries = 3
+  url: string | URL,
+  init: RequestInit = {},
+  maxRetries = 3,
 ): Promise<Response> {
-	// EC-05: maxRetries=0 would throw `undefined`; guard here for a clear error
-	if (maxRetries < 1) throw new RangeError(`maxRetries must be ≥ 1, got ${maxRetries}`);
-	let lastErr: unknown;
-	for (let attempt = 0; attempt < maxRetries; attempt++) {
-		try {
-			return await fetch(url, init);
-		} catch (err) {
-			const code = (err as NodeJS.ErrnoException & { cause?: NodeJS.ErrnoException }).cause?.code
-				?? (err as NodeJS.ErrnoException).code;
-			if (!code || !RETRYABLE.has(code)) throw err;
-			lastErr = err;
-			if (attempt < maxRetries - 1) {
-				await new Promise((r) => setTimeout(r, 500 * 2 ** attempt));
-			}
-		}
-	}
-	throw lastErr;
+  // EC-05: maxRetries=0 would throw `undefined`; guard here for a clear error
+  if (maxRetries < 1)
+    throw new RangeError(`maxRetries must be ≥ 1, got ${maxRetries}`);
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fetch(url, init);
+    } catch (err) {
+      const code =
+        (err as NodeJS.ErrnoException & { cause?: NodeJS.ErrnoException }).cause
+          ?.code ?? (err as NodeJS.ErrnoException).code;
+      if (!code || !RETRYABLE.has(code)) throw err;
+      lastErr = err;
+      if (attempt < maxRetries - 1) {
+        await new Promise((r) => setTimeout(r, 500 * 2 ** attempt));
+      }
+    }
+  }
+  throw lastErr;
 }

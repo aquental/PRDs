@@ -5,6 +5,8 @@ dist/
 .svelte-kit/
 coverage/
 logs/
+# Route exception: src/routes/admin/logs/ is a SvelteKit route, not a log dir
+!src/routes/admin/logs/
 *.log
 *.tmp
 .DS_Store
