@@ -38,13 +38,13 @@ export function ttsRateLimiter() {
 // --- Helpers: estado quente do chat (TTL curto) ------------------------------
 // Cada função verifica o kill-switch antes de tocar no Redis.
 
-export async function getCachedChatState<T>(key: string): Promise<T | null> {
+async function getCachedChatState<T>(key: string): Promise<T | null> {
 	const sw = await getServiceSwitches();
 	if (!sw.redis) return null;
 	return await getRedis().get<T>(`psi:chat:${key}`);
 }
 
-export async function setCachedChatState(key: string, value: unknown, ttlSeconds = 60 * 30) {
+async function setCachedChatState(key: string, value: unknown, ttlSeconds = 60 * 30) {
 	const sw = await getServiceSwitches();
 	if (!sw.redis) return;
 	await getRedis().set(`psi:chat:${key}`, value, { ex: ttlSeconds });

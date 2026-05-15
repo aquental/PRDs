@@ -62,4 +62,4 @@ export function serverConfig() {
 	return _privateConfig;
 }
 
-export const isProd = () => serverConfig().NODE_ENV === 'production';
+const isProd = () => serverConfig().NODE_ENV === 'production';

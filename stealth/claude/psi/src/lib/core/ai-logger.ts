@@ -16,20 +16,20 @@ export interface LLMPrice {
 	output_per_1k: number;
 }
 
-export const LLM_PRICES: Record<string, LLMPrice> = {
+const LLM_PRICES: Record<string, LLMPrice> = {
 	'gpt-4o-mini': { input_per_1k: 0.00015, output_per_1k: 0.0006 },
 	'gpt-4o': { input_per_1k: 0.0025, output_per_1k: 0.01 },
 	'claude-haiku-4-5-20251001': { input_per_1k: 0.001, output_per_1k: 0.005 }
 };
 
 // ElevenLabs: preço por caractere.
-export const TTS_PRICE_USD_PER_CHAR: Record<string, number> = {
+const TTS_PRICE_USD_PER_CHAR: Record<string, number> = {
 	eleven_turbo_v2_5: 0.00003,
 	eleven_multilingual_v2: 0.00005
 };
 
 /** Cálculo puro do custo de uma chamada LLM. */
-export function computeLLMCost(model: string, inputTokens: number, outputTokens: number): number {
+function computeLLMCost(model: string, inputTokens: number, outputTokens: number): number {
 	const price = LLM_PRICES[model];
 	if (!price) return 0;
 	return (
@@ -38,7 +38,7 @@ export function computeLLMCost(model: string, inputTokens: number, outputTokens:
 }
 
 /** Cálculo puro do custo de TTS. */
-export function computeTTSCost(model: string, characters: number): number {
+function computeTTSCost(model: string, characters: number): number {
 	const pricePerChar = TTS_PRICE_USD_PER_CHAR[model] ?? 0;
 	return pricePerChar * characters;
 }

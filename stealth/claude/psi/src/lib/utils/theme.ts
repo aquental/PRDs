@@ -10,7 +10,7 @@ export function getTheme(): Theme {
 	return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-export function applyTheme(theme: Theme) {
+function applyTheme(theme: Theme) {
 	if (typeof document === 'undefined') return;
 	document.documentElement.classList.toggle('dark', theme === 'dark');
 	localStorage.setItem(KEY, theme);
