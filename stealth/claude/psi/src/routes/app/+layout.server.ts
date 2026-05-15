@@ -4,8 +4,8 @@ import { createSupabaseAdminClient } from "$lib/supabase/server";
 import { getServiceSwitches } from "$lib/server/service-switches";
 
 export const load: LayoutServerLoad = async ({ locals }) => {
-  const { session, user } = await locals.safeGetSession();
-  if (!session || !user) throw redirect(303, "/login");
+  const { user } = await locals.safeGetSession();
+  if (!user) throw redirect(303, "/login");
 
   // Bloqueia admins nesta área — eles têm seu próprio /admin.
   const admin = createSupabaseAdminClient();

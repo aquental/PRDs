@@ -5,16 +5,15 @@
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabase/client';
 	interface Props {
-		data: { session: import('@supabase/supabase-js').Session | null };
 		children: Snippet;
 	}
-	let { data, children }: Props = $props();
+	let { children }: Props = $props();
 
 	onMount(() => {
 		const {
 			data: { subscription }
-		} = supabase.auth.onAuthStateChange((_event, newSession) => {
-			if (newSession?.expires_at !== data.session?.expires_at) {
+		} = supabase.auth.onAuthStateChange((event) => {
+			if (event !== 'INITIAL_SESSION') {
 				invalidate('supabase:auth');
 			}
 		});

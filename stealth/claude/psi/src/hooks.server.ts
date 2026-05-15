@@ -6,25 +6,19 @@ import { logger } from "$lib/logger";
 /**
  * Anexa a cada request:
  *   · event.locals.supabase — cliente Supabase já com cookies do request
- *   · event.locals.safeGetSession — validação server-side do JWT (evita getSession() inseguro)
+ *   · event.locals.safeGetSession — validação server-side do JWT via getUser()
  */
 const supabaseHandle: Handle = async ({ event, resolve }) => {
   event.locals.supabase = createSupabaseServerClient(event);
 
   event.locals.safeGetSession = async () => {
     const {
-      data: { session },
-    } = await event.locals.supabase.auth.getSession();
-    if (!session) return { session: null, user: null };
-
-    // Revalida o JWT contra o servidor (recomendado pela Supabase).
-    const {
       data: { user },
       error,
     } = await event.locals.supabase.auth.getUser();
-    if (error) return { session: null, user: null };
+    if (error || !user) return { user: null };
 
-    return { session, user };
+    return { user };
   };
 
   return resolve(event, {
