@@ -1,22 +1,22 @@
-import type { PageServerLoad } from './$types';
-import { publicConfig } from '$lib/config';
+import type { PageServerLoad } from "./$types";
+import { publicConfig } from "$lib/config";
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
-	const { therapist, switches } = await parent();
+  const { therapist, switches } = await parent();
 
-	const { data: conversations } = await locals.supabase
-		.from('chat_conversations')
-		.select('id, title, updated_at')
-		.eq('therapist_id', therapist.id)
-		.order('updated_at', { ascending: false })
-		.limit(20);
+  const { data: conversations } = await locals.supabase
+    .from("chat_conversations")
+    .select("id, title, updated_at")
+    .eq("therapist_id", therapist.id)
+    .order("updated_at", { ascending: false })
+    .limit(20);
 
-	return {
-		conversations: conversations ?? [],
-		features: {
-			voice: publicConfig.PUBLIC_FEATURE_VOICE_CHAT && switches.tts,
-			llm: switches.llm,
-			tts: switches.tts
-		}
-	};
+  return {
+    conversations: conversations ?? [],
+    features: {
+      voice: publicConfig.PUBLIC_FEATURE_VOICE_CHAT && switches.tts,
+      llm: switches.llm,
+      tts: switches.tts,
+    },
+  };
 };

@@ -33,15 +33,16 @@ npm run admin:promote  # Promote a user to admin role
 
 Three distinct areas, each with its own `+layout.server.ts` guard:
 
-| Path | Who can access | Guard behavior |
-|------|---------------|----------------|
-| `/app/*` | Authenticated therapists | Redirects admins → `/admin`, unauthenticated → `/login` |
-| `/admin/*` | Admin users only | Uses `createSupabaseAdminClient()` to verify `admins` table |
-| `/login`, `/auth/callback` | Public | — |
+| Path                       | Who can access           | Guard behavior                                              |
+| -------------------------- | ------------------------ | ----------------------------------------------------------- |
+| `/app/*`                   | Authenticated therapists | Redirects admins → `/admin`, unauthenticated → `/login`     |
+| `/admin/*`                 | Admin users only         | Uses `createSupabaseAdminClient()` to verify `admins` table |
+| `/login`, `/auth/callback` | Public                   | —                                                           |
 
 ### Auth Flow
 
 `hooks.server.ts` runs on every request and attaches to `event.locals`:
+
 - `event.locals.supabase` — session-bound Supabase client (anon key + cookies)
 - `event.locals.safeGetSession()` — revalidates JWT server-side via `getUser()` (never trust `getSession()` alone)
 
@@ -75,12 +76,14 @@ $core        → src/lib/core
 ### Redis (`$lib/redis.ts`)
 
 Upstash Redis is used for two purposes:
+
 1. Rate limiting (Upstash Ratelimit)
 2. Hot chat state cache with short TTL (`psi:chat:*`) and dashboard cache (`psi:dash:*`)
 
 ### Data Model & RLS
 
 See `MODEL.md` for the full schema. Key principles:
+
 - All domain tables carry `clinic_id` for RLS isolation via `current_clinic_id()` helper function.
 - Sensitive fields (`cpf`, clinical notes, Google OAuth token) stored as `BYTEA` encrypted with `pgcrypto` via Supabase Vault secret `ENCRYPTION_KEY`.
 - Patients never authenticate — they are Google Calendar attendees only.
@@ -94,6 +97,7 @@ All components use Svelte 5 runes mode (`compilerOptions.runes: true` in `svelte
 ## Key Environment Variables
 
 Server-side (required):
+
 - `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `SUPABASE_ENCRYPTION_KEY`
 - `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`
 - `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_PROVIDER`
@@ -102,6 +106,7 @@ Server-side (required):
 - `ADMIN_EMAILS` — comma-separated list of admin email addresses
 
 Public (browser-safe, prefix `PUBLIC_`):
+
 - `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`
 - `PUBLIC_APP_URL`, `PUBLIC_FEATURE_VOICE_CHAT`, `PUBLIC_FEATURE_TELEGRAM_OMNICHANNEL`
 
