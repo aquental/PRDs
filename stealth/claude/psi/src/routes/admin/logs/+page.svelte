@@ -211,6 +211,7 @@
 					</thead>
 					<tbody class="divide-y divide-primary-100/30 dark:divide-white/5">
 						{#each data.logs as log (log.id)}
+							{@const Icon = typeIcon(log.call_type)}
 							<tr class="group">
 								<td class="py-2.5 pr-4 font-mono text-xs tabular-nums text-ink-muted">
 									{fmtDate(log.created_at)}
@@ -219,7 +220,6 @@
 									{log.therapist_id ? (data.therapistMap[log.therapist_id] ?? '—') : '—'}
 								</td>
 								<td class="py-2.5 pr-4">
-									{@const Icon = typeIcon(log.call_type)}
 									<span class="flex items-center gap-1.5 text-ink-muted">
 										<Icon size={13} />
 										{typeLabel[log.call_type] ?? log.call_type}
