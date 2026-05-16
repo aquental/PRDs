@@ -32,6 +32,24 @@ export function formatDateTime(iso: string, tz = "America/Sao_Paulo"): string {
   }).format(d);
 }
 
+export function formatScheduledAt(
+  iso: string | null | undefined,
+  tz = "America/Sao_Paulo",
+): string {
+  if (!iso) return "Horário não informado";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "Horário não informado";
+  const date = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: tz,
+    dateStyle: "short",
+  }).format(d);
+  const time = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: tz,
+    timeStyle: "short",
+  }).format(d);
+  return `${date} às ${time}`;
+}
+
 function formatDate(iso: string, tz = "America/Sao_Paulo"): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";

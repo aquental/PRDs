@@ -69,34 +69,47 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
 
   if (!patient) throw error(404, "Paciente não encontrado");
 
-  const [{ data: sessions }, { data: address }, { data: relatives }, switches] =
-    await Promise.all([
-      locals.supabase
-        .from("sessions")
-        .select("id, scheduled_at, duration_minutes, fee, status, paid")
-        .eq("patient_id", patient.id)
-        .order("scheduled_at", { ascending: false })
-        .limit(50),
-      locals.supabase
-        .from("patient_addresses")
-        .select(
-          "patient_id, logradouro, numero, complemento, cep, cidade, estado",
-        )
-        .eq("patient_id", patient.id)
-        .maybeSingle(),
-      locals.supabase
-        .from("patient_relatives")
-        .select("id, nome, telefone, endereco")
-        .eq("patient_id", patient.id)
-        .order("created_at", { ascending: true }),
-      getServiceSwitches(),
-    ]);
+  const [
+    { data: sessions },
+    { data: address },
+    { data: relatives },
+    { data: schedules },
+    switches,
+  ] = await Promise.all([
+    locals.supabase
+      .from("sessions")
+      .select("id, scheduled_at, duration_minutes, fee, status, paid")
+      .eq("patient_id", patient.id)
+      .order("scheduled_at", { ascending: false })
+      .limit(50),
+    locals.supabase
+      .from("patient_addresses")
+      .select(
+        "patient_id, logradouro, numero, complemento, cep, cidade, estado",
+      )
+      .eq("patient_id", patient.id)
+      .maybeSingle(),
+    locals.supabase
+      .from("patient_relatives")
+      .select("id, nome, telefone, endereco")
+      .eq("patient_id", patient.id)
+      .order("created_at", { ascending: true }),
+    locals.supabase
+      .from("schedules")
+      .select("id, day_of_week, start_time, duration_minutes, frequency, fee")
+      .eq("patient_id", patient.id)
+      .eq("active", true)
+      .order("day_of_week")
+      .order("start_time"),
+    getServiceSwitches(),
+  ]);
 
   return {
     patient,
     sessions: sessions ?? [],
     address: address ?? null,
     relatives: relatives ?? [],
+    schedules: schedules ?? [],
     cepEnabled: switches.cep,
   };
 };

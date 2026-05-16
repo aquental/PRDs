@@ -4,7 +4,7 @@
 	import Input from '$lib/ui/Input.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import { enhance } from '$app/forms';
-	import { formatBRL, formatDateTime, formatPhone } from '$lib/utils/format';
+	import { formatBRL, formatScheduledAt, formatPhone } from '$lib/utils/format';
 	import { PencilSimple, Warning, CircleNotch, WarningCircle, Plus, Trash, MapPin, UsersThree } from 'phosphor-svelte';
 	import { PUBLIC_CEP_API_URL } from '$env/static/public';
 
@@ -15,6 +15,14 @@
 		fee: number | null;
 		status: string;
 		paid: boolean;
+	}
+	interface Schedule {
+		id: string;
+		day_of_week: number;
+		start_time: string;
+		duration_minutes: number;
+		frequency: string;
+		fee: number | null;
 	}
 	interface Relative {
 		id: string;
@@ -43,6 +51,7 @@
 				google_calendar_attendee_email: string | null;
 			};
 			sessions: Session[];
+			schedules: Schedule[];
 			address: PatientAddress | null;
 			relatives: Relative[];
 			cepEnabled: boolean;
@@ -131,6 +140,19 @@
 		completed: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300',
 		cancelled: 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300',
 		no_show: 'bg-secondary-50 text-secondary-700 dark:bg-secondary-900/30 dark:text-secondary-300'
+	};
+
+	const dayLabel: Record<number, string> = {
+		1: 'Segunda-feira',
+		2: 'Terça-feira',
+		3: 'Quarta-feira',
+		4: 'Quinta-feira',
+		5: 'Sexta-feira'
+	};
+
+	const frequencyLabel: Record<string, string> = {
+		weekly: 'Semanal',
+		biweekly: 'Quinzenal'
 	};
 
 	const paidSessions = $derived(data.sessions.filter((s) => s.paid).length);
@@ -462,6 +484,37 @@
 		</div>
 	</div>
 
+	<Card title="Sessões Agendadas">
+		{#if data.schedules.length === 0}
+			<p class="py-8 text-center text-ink-muted">Nenhum agendamento recorrente cadastrado.</p>
+		{:else}
+			<div class="overflow-x-auto">
+				<table class="w-full text-left text-sm">
+					<thead>
+						<tr class="border-b border-primary-100/60 dark:border-white/5">
+							<th class="pb-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Dia</th>
+							<th class="pb-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Horário</th>
+							<th class="pb-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Duração</th>
+							<th class="pb-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Frequência</th>
+							<th class="pb-3 text-right text-[11px] font-medium uppercase tracking-wide text-ink-muted">Valor</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-primary-100/40 dark:divide-white/5">
+						{#each data.schedules as sc (sc.id)}
+							<tr>
+								<td class="py-3.5 font-medium text-ink dark:text-bg">{dayLabel[sc.day_of_week] ?? sc.day_of_week}</td>
+								<td class="py-3.5 text-ink-muted">{sc.start_time.slice(0, 5)}</td>
+								<td class="py-3.5 text-ink-muted">{sc.duration_minutes} min</td>
+								<td class="py-3.5 text-ink-muted">{frequencyLabel[sc.frequency] ?? sc.frequency}</td>
+								<td class="py-3.5 text-right tabular-nums font-medium">{formatBRL(sc.fee)}</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		{/if}
+	</Card>
+
 	<Card title="Histórico de sessões">
 		{#if data.sessions.length === 0}
 			<p class="py-8 text-center text-ink-muted">Nenhuma sessão registrada.</p>
@@ -480,7 +533,7 @@
 					<tbody class="divide-y divide-primary-100/40 dark:divide-white/5">
 						{#each data.sessions as s (s.id)}
 							<tr>
-								<td class="py-3.5 text-ink-muted">{formatDateTime(s.scheduled_at)}</td>
+								<td class="py-3.5 text-ink-muted">{formatScheduledAt(s.scheduled_at)}</td>
 								<td class="py-3.5 text-ink-muted">{s.duration_minutes} min</td>
 								<td class="py-3.5">
 									<span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium {statusClass[s.status] ?? 'bg-primary-50 text-primary-700'}">
