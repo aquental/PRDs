@@ -270,6 +270,19 @@
 					<dt class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Pagas</dt>
 					<dd class="mt-0.5 font-medium text-primary">{paidSessions} de {data.sessions.length}</dd>
 				</div>
+				{#if data.schedules.length > 0}
+					<div class="border-t border-primary-100/40 pt-2 dark:border-white/5">
+						<dt class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Agendamentos</dt>
+						<dd class="mt-1.5 space-y-1">
+							{#each data.schedules as sc (sc.id)}
+								<p class="font-medium text-ink dark:text-bg">
+									{dayLabel[sc.day_of_week] ?? sc.day_of_week} às {sc.start_time.slice(0, 5)}
+									<span class="font-normal text-ink-muted">· {frequencyLabel[sc.frequency] ?? sc.frequency}</span>
+								</p>
+							{/each}
+						</dd>
+					</div>
+				{/if}
 			</dl>
 		</Card>
 	</div>
@@ -483,37 +496,6 @@
 			{/if}
 		</div>
 	</div>
-
-	<Card title="Sessões Agendadas">
-		{#if data.schedules.length === 0}
-			<p class="py-8 text-center text-ink-muted">Nenhum agendamento recorrente cadastrado.</p>
-		{:else}
-			<div class="overflow-x-auto">
-				<table class="w-full text-left text-sm">
-					<thead>
-						<tr class="border-b border-primary-100/60 dark:border-white/5">
-							<th class="pb-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Dia</th>
-							<th class="pb-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Horário</th>
-							<th class="pb-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Duração</th>
-							<th class="pb-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Frequência</th>
-							<th class="pb-3 text-right text-[11px] font-medium uppercase tracking-wide text-ink-muted">Valor</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-primary-100/40 dark:divide-white/5">
-						{#each data.schedules as sc (sc.id)}
-							<tr>
-								<td class="py-3.5 font-medium text-ink dark:text-bg">{dayLabel[sc.day_of_week] ?? sc.day_of_week}</td>
-								<td class="py-3.5 text-ink-muted">{sc.start_time.slice(0, 5)}</td>
-								<td class="py-3.5 text-ink-muted">{sc.duration_minutes} min</td>
-								<td class="py-3.5 text-ink-muted">{frequencyLabel[sc.frequency] ?? sc.frequency}</td>
-								<td class="py-3.5 text-right tabular-nums font-medium">{formatBRL(sc.fee)}</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
-		{/if}
-	</Card>
 
 	<Card title="Histórico de sessões">
 		{#if data.sessions.length === 0}
