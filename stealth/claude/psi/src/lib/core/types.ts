@@ -116,6 +116,7 @@ export interface Template {
   id: string;
   clinic_id: string;
   therapist_id: string;
+  patient_id: string | null;
   category: TemplateCategory;
   media: TemplateMedia;
   title: string;

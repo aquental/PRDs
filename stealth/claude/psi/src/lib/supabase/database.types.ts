@@ -700,6 +700,7 @@ export type Database = {
           id: string
           is_active: boolean
           media: Database["public"]["Enums"]["template_media"]
+          patient_id: string | null
           therapist_id: string
           title: string
           updated_at: string
@@ -712,6 +713,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           media?: Database["public"]["Enums"]["template_media"]
+          patient_id?: string | null
           therapist_id: string
           title: string
           updated_at?: string
@@ -724,6 +726,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           media?: Database["public"]["Enums"]["template_media"]
+          patient_id?: string | null
           therapist_id?: string
           title?: string
           updated_at?: string
@@ -734,6 +737,13 @@ export type Database = {
             columns: ["clinic_id"]
             isOneToOne: false
             referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "templates_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
             referencedColumns: ["id"]
           },
           {

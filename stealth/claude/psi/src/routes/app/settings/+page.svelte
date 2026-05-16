@@ -44,10 +44,12 @@
 		category: 'anamnese' | 'evolucao' | 'relatorio' | 'consentimento' | 'outro';
 		media: 'whatsapp' | 'email' | 'print';
 		body: string;
+		patient_id: string | null;
 		is_active: boolean;
 	}
+	interface PatientOption { id: string; name: string; }
 	interface Props {
-		data: { therapist: Therapist; clinic: Clinic; expenses: Expense[]; templates: Template[]; cepEnabled: boolean };
+		data: { therapist: Therapist; clinic: Clinic; expenses: Expense[]; templates: Template[]; patients: PatientOption[]; cepEnabled: boolean };
 		form: { error?: unknown; success?: string } | null;
 	}
 	let { data, form }: Props = $props();
@@ -282,18 +284,19 @@
 		category: 'anamnese' | 'evolucao' | 'relatorio' | 'consentimento' | 'outro';
 		media: 'whatsapp' | 'email' | 'print';
 		body: string;
+		patient_id: string;
 	}
 
 	let showTemplateForm = $state(false);
-	let tpl = $state<TemplateForm>({ id: '', title: '', category: 'anamnese', media: 'whatsapp', body: '' });
+	let tpl = $state<TemplateForm>({ id: '', title: '', category: 'anamnese', media: 'whatsapp', body: '', patient_id: '' });
 
 	function startNewTemplate() {
-		tpl = { id: '', title: '', category: 'anamnese', media: 'whatsapp', body: '' };
+		tpl = { id: '', title: '', category: 'anamnese', media: 'whatsapp', body: '', patient_id: '' };
 		showTemplateForm = true;
 	}
 
 	function startEditTemplate(t: Template) {
-		tpl = { id: t.id, title: t.title, category: t.category, media: t.media, body: t.body };
+		tpl = { id: t.id, title: t.title, category: t.category, media: t.media, body: t.body, patient_id: t.patient_id ?? '' };
 		showTemplateForm = true;
 	}
 
@@ -1068,6 +1071,21 @@
 							class="w-full rounded-lg border border-primary-100/40 bg-bg px-3 py-2 text-sm text-ink dark:border-white/10 dark:bg-ink dark:text-bg"
 							placeholder="Escreva o modelo aqui..."
 						></textarea>
+					</div>
+
+					<div class="space-y-1">
+						<label class="block text-sm font-medium text-ink dark:text-bg" for="tpl-patient">Paciente <span class="font-normal text-ink-muted">(opcional)</span></label>
+						<select
+							id="tpl-patient"
+							name="patient_id"
+							bind:value={tpl.patient_id}
+							class="w-full rounded-lg border border-primary-100/40 bg-bg px-3 py-2 text-sm text-ink dark:border-white/10 dark:bg-ink dark:text-bg"
+						>
+							<option value="">— Nenhum (modelo geral) —</option>
+							{#each data.patients as p (p.id)}
+								<option value={p.id}>{p.name}</option>
+							{/each}
+						</select>
 					</div>
 
 					{#if form?.error && form?.success !== 'updateExpense' && form?.success !== 'createExpense'}

@@ -30,6 +30,7 @@ const TemplateSchema = z.object({
   category: z.enum(["anamnese", "evolucao", "relatorio", "consentimento", "outro"]),
   media: z.enum(["whatsapp", "email", "print"]).default("whatsapp"),
   body: z.string().default(""),
+  patient_id: z.string().uuid().nullable().optional(),
 });
 
 const ExpenseSchema = z.object({
@@ -57,7 +58,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   const { data: therapist } = await locals.supabase
     .from("therapists")
-    .select("name, email, crp, phone, default_session_fee, clinic_id")
+    .select("id, name, email, crp, phone, default_session_fee, clinic_id")
     .eq("user_id", user.id)
     .single();
 
@@ -73,7 +74,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   if (!clinic) throw error(404, "Clínica não encontrada");
 
-  const [{ data: expenses }, { data: templates }] = await Promise.all([
+  const [{ data: expenses }, { data: templates }, { data: patients }] = await Promise.all([
     locals.supabase
       .from("expenses")
       .select(
@@ -84,16 +85,22 @@ export const load: PageServerLoad = async ({ locals }) => {
       .order("description"),
     locals.supabase
       .from("templates")
-      .select("id, title, category, body, is_active, created_at, updated_at")
+      .select("id, title, category, media, body, patient_id, is_active, created_at, updated_at")
       .eq("clinic_id", therapist.clinic_id)
       .eq("is_active", true)
       .order("category")
       .order("title"),
+    locals.supabase
+      .from("patients")
+      .select("id, name")
+      .eq("therapist_id", therapist.id)
+      .eq("active", true)
+      .order("name"),
   ]);
 
   const { cep: cepEnabled } = await getServiceSwitches();
 
-  return { therapist, clinic, expenses: expenses ?? [], templates: templates ?? [], cepEnabled };
+  return { therapist, clinic, expenses: expenses ?? [], templates: templates ?? [], patients: patients ?? [], cepEnabled };
 };
 
 export const actions: Actions = {
@@ -283,6 +290,7 @@ export const actions: Actions = {
       category: parsed.data.category,
       media: parsed.data.media,
       body: parsed.data.body,
+      patient_id: parsed.data.patient_id ?? null,
     });
 
     if (err) return fail(400, { error: err.message });
@@ -309,7 +317,7 @@ export const actions: Actions = {
 
     const { error: err } = await locals.supabase
       .from("templates")
-      .update({ title: parsed.data.title, category: parsed.data.category, media: parsed.data.media, body: parsed.data.body })
+      .update({ title: parsed.data.title, category: parsed.data.category, media: parsed.data.media, body: parsed.data.body, patient_id: parsed.data.patient_id ?? null })
       .eq("id", id)
       .eq("clinic_id", therapist.clinic_id);
 
