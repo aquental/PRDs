@@ -38,8 +38,15 @@
 		color?: string | null;
 		month?: number | null;
 	}
+	interface Template {
+		id: string;
+		title: string;
+		category: 'anamnese' | 'evolucao' | 'relatorio' | 'consentimento' | 'outro';
+		body: string;
+		is_active: boolean;
+	}
 	interface Props {
-		data: { therapist: Therapist; clinic: Clinic; expenses: Expense[]; cepEnabled: boolean };
+		data: { therapist: Therapist; clinic: Clinic; expenses: Expense[]; templates: Template[]; cepEnabled: boolean };
 		form: { error?: unknown; success?: string } | null;
 	}
 	let { data, form }: Props = $props();
@@ -55,7 +62,7 @@
 	}
 
 	// ── Tabs ──────────────────────────────────────────────
-	let activeTab = $state<'perfil' | 'despesas'>('perfil');
+	let activeTab = $state<'perfil' | 'despesas' | 'modelos'>('perfil');
 
 	// ── Perfil / Clínica ──────────────────────────────────
 	let editingTherapist = $state(false);
@@ -253,6 +260,39 @@
 		showExpenseForm = false;
 	}
 
+	// ── Modelos ───────────────────────────────────────────
+	const CATEGORY_LABELS: Record<string, string> = {
+		anamnese: 'Anamnese',
+		evolucao: 'Evolução',
+		relatorio: 'Relatório',
+		consentimento: 'Consentimento',
+		outro: 'Outro',
+	};
+
+	interface TemplateForm {
+		id: string;
+		title: string;
+		category: 'anamnese' | 'evolucao' | 'relatorio' | 'consentimento' | 'outro';
+		body: string;
+	}
+
+	let showTemplateForm = $state(false);
+	let tpl = $state<TemplateForm>({ id: '', title: '', category: 'anamnese', body: '' });
+
+	function startNewTemplate() {
+		tpl = { id: '', title: '', category: 'anamnese', body: '' };
+		showTemplateForm = true;
+	}
+
+	function startEditTemplate(t: Template) {
+		tpl = { id: t.id, title: t.title, category: t.category, body: t.body };
+		showTemplateForm = true;
+	}
+
+	function cancelTemplate() {
+		showTemplateForm = false;
+	}
+
 	// ── Expense sort ──────────────────────────────────────
 	type SortMode = 'date_value' | 'value';
 	let sortMode = $state<SortMode>('date_value');
@@ -407,6 +447,14 @@
 					: 'border-transparent text-ink-muted hover:text-ink dark:hover:text-bg'}"
 			>
 				Despesas
+			</button>
+			<button
+				onclick={() => (activeTab = 'modelos')}
+				class="border-b-2 px-4 py-2 text-sm font-medium transition-colors {activeTab === 'modelos'
+					? 'border-primary text-primary'
+					: 'border-transparent text-ink-muted hover:text-ink dark:hover:text-bg'}"
+			>
+				Modelos
 			</button>
 		</div>
 	</div>
@@ -900,5 +948,115 @@
 			{/if}
 		</Card>
 
+	{/if}
+
+	<!-- ── Aba: Modelos ── -->
+	{#if activeTab === 'modelos'}
+		<Card title="Modelos de documentos">
+			{#if showTemplateForm}
+				<form
+					method="POST"
+					action={tpl.id ? '?/updateTemplate' : '?/createTemplate'}
+					use:enhance={() => async ({ update }) => {
+						await update({ reset: false });
+						if (form?.success === 'createTemplate' || form?.success === 'updateTemplate') {
+							showTemplateForm = false;
+						}
+					}}
+					class="space-y-4"
+				>
+					{#if tpl.id}
+						<input type="hidden" name="id" value={tpl.id} />
+					{/if}
+
+					<div class="grid gap-4 sm:grid-cols-2">
+						<Input label="Título" name="title" bind:value={tpl.title} required />
+						<div class="space-y-1">
+							<label class="block text-sm font-medium text-ink dark:text-bg" for="tpl-category">Categoria</label>
+							<select
+								id="tpl-category"
+								name="category"
+								bind:value={tpl.category}
+								class="w-full rounded-lg border border-primary-100/40 bg-bg px-3 py-2 text-sm text-ink dark:border-white/10 dark:bg-ink dark:text-bg"
+							>
+								{#each Object.entries(CATEGORY_LABELS) as [val, label]}
+									<option value={val}>{label}</option>
+								{/each}
+							</select>
+						</div>
+					</div>
+
+					<div class="space-y-1">
+						<label class="block text-sm font-medium text-ink dark:text-bg" for="tpl-body">Conteúdo</label>
+						<textarea
+							id="tpl-body"
+							name="body"
+							bind:value={tpl.body}
+							rows={10}
+							class="w-full rounded-lg border border-primary-100/40 bg-bg px-3 py-2 text-sm text-ink dark:border-white/10 dark:bg-ink dark:text-bg"
+							placeholder="Escreva o modelo aqui..."
+						></textarea>
+					</div>
+
+					{#if form?.error && form?.success !== 'updateExpense' && form?.success !== 'createExpense'}
+						<p class="text-sm text-red-600">{formatFormError(form.error)}</p>
+					{/if}
+
+					<div class="flex justify-end gap-2">
+						<Button variant="ghost" type="button" onclick={cancelTemplate}>Cancelar</Button>
+						<Button type="submit">{tpl.id ? 'Salvar' : 'Criar'}</Button>
+					</div>
+				</form>
+			{:else}
+				<div class="mb-4 flex justify-end">
+					<Button onclick={startNewTemplate}>
+						<Plus size={16} class="mr-1" /> Novo modelo
+					</Button>
+				</div>
+
+				{#if data.templates.length === 0}
+					<p class="py-8 text-center text-sm text-ink-muted">Nenhum modelo criado ainda.</p>
+				{:else}
+					<ul class="divide-y divide-primary-100/40 dark:divide-white/5">
+						{#each data.templates as t (t.id)}
+							<li class="flex items-start justify-between gap-4 py-3">
+								<div class="min-w-0">
+									<p class="truncate text-sm font-medium text-ink dark:text-bg">{t.title}</p>
+									<p class="mt-0.5 text-xs text-ink-muted">{CATEGORY_LABELS[t.category] ?? t.category}</p>
+								</div>
+								<div class="flex shrink-0 items-center gap-1">
+									<button
+										type="button"
+										onclick={() => startEditTemplate(t)}
+										class="rounded-lg p-1.5 text-ink-muted transition-colors hover:bg-primary-50 hover:text-primary dark:hover:bg-primary/10"
+										aria-label="Editar"
+									>
+										<PencilSimple size={15} />
+									</button>
+
+									<form
+										method="POST"
+										action="?/softDeleteTemplate"
+										use:enhance={() => async ({ update }) => {
+											await update({ reset: false });
+										}}
+									>
+										<input type="hidden" name="id" value={t.id} />
+										<button
+											type="submit"
+											onclick={(e) => { if (!confirm('Remover este modelo?')) e.preventDefault(); }}
+											class="rounded-lg p-1.5 text-ink-muted transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+											aria-label="Remover"
+										>
+											<Trash size={15} />
+										</button>
+									</form>
+								</div>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			{/if}
+		</Card>
 	{/if}
 </div>

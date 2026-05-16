@@ -101,6 +101,28 @@ export interface Expense {
   updated_at: string;
 }
 
+export type TemplateCategory = "anamnese" | "evolucao" | "relatorio" | "consentimento" | "outro";
+
+export const CATEGORY_LABELS: Record<TemplateCategory, string> = {
+  anamnese: "Anamnese",
+  evolucao: "Evolução",
+  relatorio: "Relatório",
+  consentimento: "Consentimento",
+  outro: "Outro",
+};
+
+export interface Template {
+  id: string;
+  clinic_id: string;
+  therapist_id: string;
+  category: TemplateCategory;
+  title: string;
+  body: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AIUsageLog {
   id: string;
   clinic_id?: string | null;

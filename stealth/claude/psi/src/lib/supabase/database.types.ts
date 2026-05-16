@@ -691,6 +691,57 @@ export type Database = {
           },
         ]
       }
+      templates: {
+        Row: {
+          body: string
+          category: Database["public"]["Enums"]["template_category"]
+          clinic_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          therapist_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string
+          category?: Database["public"]["Enums"]["template_category"]
+          clinic_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          therapist_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          category?: Database["public"]["Enums"]["template_category"]
+          clinic_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          therapist_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "templates_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "templates_therapist_id_fkey"
+            columns: ["therapist_id"]
+            isOneToOne: false
+            referencedRelation: "therapists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       therapists: {
         Row: {
           address: string | null
@@ -769,6 +820,12 @@ export type Database = {
       finance_entry_type: "revenue" | "expense"
       schedule_frequency: "weekly" | "biweekly" | "monthly" | "detached"
       session_status: "scheduled" | "completed" | "cancelled" | "no_show"
+      template_category:
+        | "anamnese"
+        | "evolucao"
+        | "relatorio"
+        | "consentimento"
+        | "outro"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -910,6 +967,13 @@ export const Constants = {
       finance_entry_type: ["revenue", "expense"],
       schedule_frequency: ["weekly", "biweekly", "monthly", "detached"],
       session_status: ["scheduled", "completed", "cancelled", "no_show"],
+      template_category: [
+        "anamnese",
+        "evolucao",
+        "relatorio",
+        "consentimento",
+        "outro",
+      ],
     },
   },
 } as const

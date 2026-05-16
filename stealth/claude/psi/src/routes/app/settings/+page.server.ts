@@ -25,6 +25,12 @@ const ClinicSchema = z.object({
   working_hours_end: z.coerce.number().int().min(1).max(24).default(21),
 });
 
+const TemplateSchema = z.object({
+  title: z.string().min(1),
+  category: z.enum(["anamnese", "evolucao", "relatorio", "consentimento", "outro"]),
+  body: z.string().default(""),
+});
+
 const ExpenseSchema = z.object({
   description: z.string().min(1),
   amount: z.coerce.number().nonnegative(),
@@ -66,18 +72,27 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   if (!clinic) throw error(404, "Clínica não encontrada");
 
-  const { data: expenses } = await locals.supabase
-    .from("expenses")
-    .select(
-      "id, description, amount, frequency, due_day, due_date, is_active, notes, color, month, created_at",
-    )
-    .eq("clinic_id", therapist.clinic_id)
-    .order("is_active", { ascending: false })
-    .order("description");
+  const [{ data: expenses }, { data: templates }] = await Promise.all([
+    locals.supabase
+      .from("expenses")
+      .select(
+        "id, description, amount, frequency, due_day, due_date, is_active, notes, color, month, created_at",
+      )
+      .eq("clinic_id", therapist.clinic_id)
+      .order("is_active", { ascending: false })
+      .order("description"),
+    locals.supabase
+      .from("templates")
+      .select("id, title, category, body, is_active, created_at, updated_at")
+      .eq("clinic_id", therapist.clinic_id)
+      .eq("is_active", true)
+      .order("category")
+      .order("title"),
+  ]);
 
   const { cep: cepEnabled } = await getServiceSwitches();
 
-  return { therapist, clinic, expenses: expenses ?? [], cepEnabled };
+  return { therapist, clinic, expenses: expenses ?? [], templates: templates ?? [], cepEnabled };
 };
 
 export const actions: Actions = {
@@ -244,5 +259,84 @@ export const actions: Actions = {
 
     if (err) return fail(400, { error: err.message });
     return { success: "deleteExpense" };
+  },
+
+  createTemplate: async ({ request, locals }) => {
+    const { user } = await locals.safeGetSession();
+    if (!user) return fail(401, { error: "Não autenticado" });
+
+    const { data: therapist } = await locals.supabase
+      .from("therapists")
+      .select("id, clinic_id")
+      .eq("user_id", user.id)
+      .single();
+    if (!therapist) return fail(403, { error: "Sem permissão" });
+
+    const parsed = TemplateSchema.safeParse(Object.fromEntries(await request.formData()));
+    if (!parsed.success) return fail(400, { error: parsed.error.flatten().fieldErrors });
+
+    const { error: err } = await locals.supabase.from("templates").insert({
+      clinic_id: therapist.clinic_id,
+      therapist_id: therapist.id,
+      title: parsed.data.title,
+      category: parsed.data.category,
+      body: parsed.data.body,
+    });
+
+    if (err) return fail(400, { error: err.message });
+    return { success: "createTemplate" };
+  },
+
+  updateTemplate: async ({ request, locals }) => {
+    const { user } = await locals.safeGetSession();
+    if (!user) return fail(401, { error: "Não autenticado" });
+
+    const { data: therapist } = await locals.supabase
+      .from("therapists")
+      .select("clinic_id")
+      .eq("user_id", user.id)
+      .single();
+    if (!therapist) return fail(403, { error: "Sem permissão" });
+
+    const formData = await request.formData();
+    const id = formData.get("id") as string;
+    if (!id) return fail(400, { error: "ID inválido" });
+
+    const parsed = TemplateSchema.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return fail(400, { error: parsed.error.flatten().fieldErrors });
+
+    const { error: err } = await locals.supabase
+      .from("templates")
+      .update({ title: parsed.data.title, category: parsed.data.category, body: parsed.data.body })
+      .eq("id", id)
+      .eq("clinic_id", therapist.clinic_id);
+
+    if (err) return fail(400, { error: err.message });
+    return { success: "updateTemplate" };
+  },
+
+  softDeleteTemplate: async ({ request, locals }) => {
+    const { user } = await locals.safeGetSession();
+    if (!user) return fail(401, { error: "Não autenticado" });
+
+    const { data: therapist } = await locals.supabase
+      .from("therapists")
+      .select("clinic_id")
+      .eq("user_id", user.id)
+      .single();
+    if (!therapist) return fail(403, { error: "Sem permissão" });
+
+    const formData = await request.formData();
+    const id = formData.get("id") as string;
+    if (!id) return fail(400, { error: "ID inválido" });
+
+    const { error: err } = await locals.supabase
+      .from("templates")
+      .update({ is_active: false })
+      .eq("id", id)
+      .eq("clinic_id", therapist.clinic_id);
+
+    if (err) return fail(400, { error: err.message });
+    return { success: "softDeleteTemplate" };
   },
 };
