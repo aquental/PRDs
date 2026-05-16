@@ -4,6 +4,9 @@
  */
 import type { Expense, FinanceEntry, Patient, Session } from "./types";
 
+/** Sessões mensais assumidas por paciente enquanto patients.sessions_per_month não existe. */
+export const SESSIONS_PER_MONTH = 4;
+
 /** Projeta receita mensal a partir dos pacientes ativos.
  * Fees negativas são ignoradas (tratadas como 0). Ver EC-10.
  */
@@ -12,8 +15,7 @@ export function projectMonthlyRevenue(patients: Patient[]): number {
     .filter((p) => p.active)
     .reduce((total, p) => {
       const fee = Math.max(0, p.session_fee ?? 0); // EC-10: negative fee → 0
-      const sessions = p.sessions_per_month ?? 0;
-      return total + fee * sessions;
+      return total + fee * SESSIONS_PER_MONTH;
     }, 0);
 }
 
@@ -140,15 +142,7 @@ export function patientRevenueRanking(
     .map((p) => ({
       patient_id: p.id,
       name: p.name,
-      monthly: Math.max(0, p.session_fee ?? 0) * (p.sessions_per_month ?? 0), // EC-10
+      monthly: Math.max(0, p.session_fee ?? 0) * SESSIONS_PER_MONTH, // EC-10
     }))
     .sort((a, b) => b.monthly - a.monthly);
-}
-
-/** Formatação BRL. */
-function formatBRL(value: number): string {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(value);
 }

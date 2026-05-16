@@ -2,7 +2,7 @@
  * Tests for UI formatting utilities (pt-BR locale).
  */
 import { describe, it, expect } from "vitest";
-import { formatBRL, formatDateTime, formatPhone } from "./format";
+import { formatBRL, formatBRLDecimal, formatDateTime, formatPhone } from "./format";
 
 // ── formatBRL ────────────────────────────────────────────────────────────────
 
@@ -45,6 +45,51 @@ describe("formatBRL", () => {
 
   it("EC-06: returns em-dash for -Infinity", () => {
     expect(formatBRL(-Infinity)).toBe("—");
+  });
+
+  it("always shows two decimal places for a whole number", () => {
+    expect(formatBRL(1000)).toMatch(/,00/);
+  });
+
+  it("shows two decimal places when value has cents", () => {
+    // 1000.10 → R$ 1.000,10
+    expect(formatBRL(1000.1)).toMatch(/,10/);
+  });
+});
+
+// ── formatBRLDecimal ─────────────────────────────────────────────────────────
+
+describe("formatBRLDecimal", () => {
+  it("formats a whole number with comma-decimal and two zeros", () => {
+    // 250 → "250,00"  (used in CSV export for pt-BR Excel)
+    expect(formatBRLDecimal(250)).toMatch(/250,00/);
+  });
+
+  it("formats thousands with dot separator and two decimal places", () => {
+    // 1500.75 → "1.500,75"
+    expect(formatBRLDecimal(1500.75)).toMatch(/1\.500,75/);
+  });
+
+  it("always shows two decimal places even for a whole number in thousands", () => {
+    expect(formatBRLDecimal(1000)).toMatch(/1\.000,00/);
+  });
+
+  it("does not include the R$ currency symbol", () => {
+    expect(formatBRLDecimal(500)).not.toMatch(/R\$/);
+  });
+
+  it("formats zero as 0,00", () => {
+    expect(formatBRLDecimal(0)).toMatch(/0,00/);
+  });
+
+  it("formats value with only one cent digit padded to two", () => {
+    // 100.1 → "100,10"  (not "100,1")
+    expect(formatBRLDecimal(100.1)).toMatch(/100,10/);
+  });
+
+  it("formats negative values without currency symbol", () => {
+    expect(formatBRLDecimal(-500)).toMatch(/500,00/);
+    expect(formatBRLDecimal(-500)).not.toMatch(/R\$/);
   });
 });
 

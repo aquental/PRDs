@@ -1,5 +1,17 @@
 /** Utilitários de formatação para a UI (pt-BR). */
 
+/**
+ * Formata número como decimal pt-BR com 2 casas (sem símbolo R$).
+ * Use para exportações CSV onde o Excel lê o campo como número.
+ * Ex.: 1500.75 → "1.500,75"  |  250 → "250,00"
+ */
+export function formatBRLDecimal(value: number): string {
+  return value.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 export function formatBRL(value: number | null | undefined): string {
   // EC-06: also guard NaN and Infinity which pass the `== null` check
   if (value == null || !Number.isFinite(value)) return "—";

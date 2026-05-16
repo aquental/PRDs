@@ -236,7 +236,7 @@
 			due_date: expense.due_date ?? '',
 			notes: expense.notes ?? '',
 			is_active: expense.is_active,
-			color: expense.color ?? DEFAULT_COLOR,
+			color: (expense.color ?? DEFAULT_COLOR).trim().toUpperCase(),
 			month: String(expense.month ?? 0)
 		};
 		showExpenseForm = true;
@@ -792,7 +792,7 @@
 									type="button"
 									onclick={() => (exp.color = c.hex)}
 									title={c.label}
-									class="h-7 w-7 rounded-full border-2 transition-all hover:scale-110 {exp.color === c.hex ? 'border-ink/60 scale-110 dark:border-bg/60' : 'border-transparent'}"
+									class="h-7 w-7 rounded-full border-2 transition-all hover:scale-110 {exp.color?.toUpperCase() === c.hex ? 'border-white ring-2 ring-ink/50 scale-110 dark:border-gray-800 dark:ring-bg/60' : 'border-transparent'}"
 									style="background-color: {c.hex}"
 								></button>
 							{/each}
