@@ -295,10 +295,23 @@
 
 	let bodyEl = $state<HTMLTextAreaElement | null>(null);
 
-	const TEMPLATE_VARS = [
-		{ label: 'Nome',     token: '{nome}'     },
-		{ label: 'E-mail',   token: '{email}'    },
-		{ label: 'Telefone', token: '{telefone}' },
+	const TEMPLATE_VAR_GROUPS = [
+		{
+			group: 'Paciente',
+			vars: [
+				{ label: 'Nome',     token: '{nome}'     },
+				{ label: 'E-mail',   token: '{email}'    },
+				{ label: 'Telefone', token: '{telefone}' },
+			],
+		},
+		{
+			group: 'Profissional',
+			vars: [
+				{ label: 'Nome', token: '{nome}'  },
+				{ label: 'CRP',  token: '{CRP}'   },
+				{ label: 'CNPJ', token: '{CNPJ}'  },
+			],
+		},
 	];
 
 	function insertVar(token: string) {
@@ -1006,15 +1019,20 @@
 					</div>
 
 					<div class="space-y-1">
-						<div class="flex items-center justify-between gap-2">
+						<div class="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
 							<label class="text-sm font-medium text-ink dark:text-bg" for="tpl-body">Conteúdo</label>
-							<div class="flex flex-wrap gap-1">
-								{#each TEMPLATE_VARS as v}
-									<button
-										type="button"
-										onclick={() => insertVar(v.token)}
-										class="rounded-full border border-primary-100/40 px-2.5 py-0.5 font-mono text-xs text-ink-muted transition-colors hover:border-primary hover:bg-primary-50 hover:text-primary dark:border-white/10 dark:hover:border-primary dark:hover:bg-primary/10 dark:hover:text-primary"
-									>{v.token}</button>
+							<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+								{#each TEMPLATE_VAR_GROUPS as g}
+									<div class="flex items-center gap-1">
+										<span class="mr-0.5 text-xs text-ink-muted">{g.group}:</span>
+										{#each g.vars as v}
+											<button
+												type="button"
+												onclick={() => insertVar(v.token)}
+												class="rounded-full border border-primary-100/40 px-2.5 py-0.5 font-mono text-xs text-ink-muted transition-colors hover:border-primary hover:bg-primary-50 hover:text-primary dark:border-white/10 dark:hover:border-primary dark:hover:bg-primary/10 dark:hover:text-primary"
+											>{v.token}</button>
+										{/each}
+									</div>
 								{/each}
 							</div>
 						</div>
