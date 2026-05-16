@@ -570,6 +570,208 @@ describe("deleteSchedule", () => {
   });
 });
 
+// ── moveSchedule ──────────────────────────────────────────────────────────────
+
+describe("moveSchedule", () => {
+  const validData = {
+    schedule_id: SCHEDULE_UUID,
+    day_of_week: "2",
+    start_time: "15:00",
+    frequency: "weekly",
+  };
+
+  // ── frequency changes (the regression that triggered this test suite) ────────
+
+  it("frequency 'biweekly' (quinzenal) → success + action:'moveSchedule'", async () => {
+    const locals = makeLocals();
+    const result = await actions.moveSchedule({
+      request: makeRequest({ ...validData, frequency: "biweekly" }),
+      locals,
+    } as unknown as Parameters<typeof actions.moveSchedule>[0]);
+
+    expect(result).toEqual({ success: true, action: "moveSchedule" });
+  });
+
+  it("frequency 'monthly' (mensal) → success + action:'moveSchedule'", async () => {
+    const locals = makeLocals();
+    const result = await actions.moveSchedule({
+      request: makeRequest({ ...validData, frequency: "monthly" }),
+      locals,
+    } as unknown as Parameters<typeof actions.moveSchedule>[0]);
+
+    expect(result).toEqual({ success: true, action: "moveSchedule" });
+  });
+
+  it("frequency 'detached' (avulso) → success + action:'moveSchedule'", async () => {
+    const locals = makeLocals();
+    const result = await actions.moveSchedule({
+      request: makeRequest({ ...validData, frequency: "detached" }),
+      locals,
+    } as unknown as Parameters<typeof actions.moveSchedule>[0]);
+
+    expect(result).toEqual({ success: true, action: "moveSchedule" });
+  });
+
+  // ── happy path ───────────────────────────────────────────────────────────────
+
+  it("happy path: valid move → success + action:'moveSchedule'", async () => {
+    const locals = makeLocals();
+    const result = await actions.moveSchedule({
+      request: makeRequest(validData),
+      locals,
+    } as unknown as Parameters<typeof actions.moveSchedule>[0]);
+
+    expect(result).toEqual({ success: true, action: "moveSchedule" });
+  });
+
+  it("omitting frequency defaults to 'weekly' → success", async () => {
+    const locals = makeLocals();
+    const { frequency: _omit, ...dataWithoutFreq } = validData;
+    const result = await actions.moveSchedule({
+      request: makeRequest(dataWithoutFreq),
+      locals,
+    } as unknown as Parameters<typeof actions.moveSchedule>[0]);
+
+    expect(result).toEqual({ success: true, action: "moveSchedule" });
+  });
+
+  // ── validation errors ────────────────────────────────────────────────────────
+
+  it("missing schedule_id → 400 with field error", async () => {
+    const locals = makeLocals();
+    const { schedule_id: _omit, ...data } = validData;
+    const result = await actions.moveSchedule({
+      request: makeRequest(data),
+      locals,
+    } as unknown as Parameters<typeof actions.moveSchedule>[0]);
+
+    expect(isActionFailure(result)).toBe(true);
+    if (isActionFailure(result)) {
+      expect(result.status).toBe(400);
+      expect(
+        (result.data as unknown as { error: Record<string, unknown> }).error,
+      ).toHaveProperty("schedule_id");
+    }
+  });
+
+  it("schedule_id that is not a UUID → 400", async () => {
+    const locals = makeLocals();
+    const result = await actions.moveSchedule({
+      request: makeRequest({ ...validData, schedule_id: "not-a-uuid" }),
+      locals,
+    } as unknown as Parameters<typeof actions.moveSchedule>[0]);
+
+    expect(isActionFailure(result)).toBe(true);
+    if (isActionFailure(result)) expect(result.status).toBe(400);
+  });
+
+  it("day_of_week = 0 (below min) → 400", async () => {
+    const locals = makeLocals();
+    const result = await actions.moveSchedule({
+      request: makeRequest({ ...validData, day_of_week: "0" }),
+      locals,
+    } as unknown as Parameters<typeof actions.moveSchedule>[0]);
+
+    expect(isActionFailure(result)).toBe(true);
+    if (isActionFailure(result)) expect(result.status).toBe(400);
+  });
+
+  it("day_of_week = 6 (weekend) → 400", async () => {
+    const locals = makeLocals();
+    const result = await actions.moveSchedule({
+      request: makeRequest({ ...validData, day_of_week: "6" }),
+      locals,
+    } as unknown as Parameters<typeof actions.moveSchedule>[0]);
+
+    expect(isActionFailure(result)).toBe(true);
+    if (isActionFailure(result)) expect(result.status).toBe(400);
+  });
+
+  it("start_time missing leading zero '9:00' → 400", async () => {
+    const locals = makeLocals();
+    const result = await actions.moveSchedule({
+      request: makeRequest({ ...validData, start_time: "9:00" }),
+      locals,
+    } as unknown as Parameters<typeof actions.moveSchedule>[0]);
+
+    expect(isActionFailure(result)).toBe(true);
+    if (isActionFailure(result)) expect(result.status).toBe(400);
+  });
+
+  it("invalid frequency 'daily' → 400", async () => {
+    const locals = makeLocals();
+    const result = await actions.moveSchedule({
+      request: makeRequest({ ...validData, frequency: "daily" }),
+      locals,
+    } as unknown as Parameters<typeof actions.moveSchedule>[0]);
+
+    expect(isActionFailure(result)).toBe(true);
+    if (isActionFailure(result)) expect(result.status).toBe(400);
+  });
+
+  // ── DB errors ────────────────────────────────────────────────────────────────
+
+  it("DB unique-constraint (23505) → 409 'Esse horário já está ocupado.'", async () => {
+    const locals = makeLocals({
+      dbError: { message: "duplicate key", code: "23505" },
+    });
+    const result = await actions.moveSchedule({
+      request: makeRequest(validData),
+      locals,
+    } as unknown as Parameters<typeof actions.moveSchedule>[0]);
+
+    expect(isActionFailure(result)).toBe(true);
+    if (isActionFailure(result)) {
+      expect(result.status).toBe(409);
+      expect((result.data as unknown as { error: string }).error).toBe(
+        "Esse horário já está ocupado.",
+      );
+    }
+  });
+
+  it("generic DB error → 400 with error.message", async () => {
+    const locals = makeLocals({
+      dbError: { message: "connection timeout", code: "08006" },
+    });
+    const result = await actions.moveSchedule({
+      request: makeRequest(validData),
+      locals,
+    } as unknown as Parameters<typeof actions.moveSchedule>[0]);
+
+    expect(isActionFailure(result)).toBe(true);
+    if (isActionFailure(result)) {
+      expect(result.status).toBe(400);
+      expect((result.data as unknown as { error: string }).error).toBe(
+        "connection timeout",
+      );
+    }
+  });
+
+  // ── auth errors ──────────────────────────────────────────────────────────────
+
+  it("unauthenticated (no user) → 401", async () => {
+    const locals = makeLocals({ user: null });
+    const result = await actions.moveSchedule({
+      request: makeRequest(validData),
+      locals,
+    } as unknown as Parameters<typeof actions.moveSchedule>[0]);
+
+    expect(isActionFailure(result)).toBe(true);
+    if (isActionFailure(result)) expect(result.status).toBe(401);
+  });
+
+  it("no therapist record → 403", async () => {
+    const locals = makeLocals({ therapistResult: { data: null, error: null } });
+    const result = await actions.moveSchedule({
+      request: makeRequest(validData),
+      locals,
+    } as unknown as Parameters<typeof actions.moveSchedule>[0]);
+
+    expect(isActionFailure(result)).toBe(true);
+    if (isActionFailure(result)) expect(result.status).toBe(403);
+  });
+});
+
 // ── create (ad-hoc session) ───────────────────────────────────────────────────
 
 describe("create (ad-hoc session)", () => {

@@ -453,9 +453,9 @@
 															const targetDay = Number(formData.get('day_of_week'));
 															const targetTime = (formData.get('start_time') as string) ?? '';
 															return async ({ update, result }) => {
-																if (result.type === 'failure') {
+																if (result.type === 'failure' && result.status === 409) {
 																	const conflict = data.schedules.find(
-																		s => s.day_of_week === targetDay && s.start_time.startsWith(targetTime)
+																		s => s.id !== slot.id && s.day_of_week === targetDay && s.start_time.startsWith(targetTime)
 																	);
 																	conflictModal = {
 																		name: conflict?.patients?.name ?? 'outro paciente',
