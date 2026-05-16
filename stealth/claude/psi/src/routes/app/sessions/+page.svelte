@@ -463,6 +463,10 @@
 																		time: targetTime.slice(0, 5)
 																	};
 																} else {
+																	if (result.type === 'failure') {
+																		const err = (result.data as { error?: unknown }).error;
+																		showToast(typeof err === 'string' ? err : 'Erro ao salvar. Tente novamente.');
+																	}
 																	await update();
 																}
 															};
