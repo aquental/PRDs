@@ -214,7 +214,7 @@ const PATIENTS: Patient[] = [
   makeSearchPatient({
     id: "p3",
     name: "Carlos Souza",
-    email: null,
+    email: "carlos@example.com",
     phone: null,
   }),
 ];
@@ -250,8 +250,7 @@ describe("searchPatients", () => {
     expect(searchPatients(PATIENTS, "zzznomatch")).toHaveLength(0);
   });
 
-  it("handles patients with null email/phone gracefully", () => {
-    // 'carlos' should match p3 by name without throwing on null email/phone
+  it("handles patients with null phone gracefully", () => {
     const result = searchPatients(PATIENTS, "carlos");
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("p3");

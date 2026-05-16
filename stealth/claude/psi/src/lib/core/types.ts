@@ -53,7 +53,7 @@ export interface Patient {
   clinic_id: string;
   therapist_id: string;
   name: string;
-  email?: string | null;
+  email: string;
   phone?: string | null;
   address?: string | null;
   birth_date?: string | null;

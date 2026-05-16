@@ -6,7 +6,7 @@ import { getServiceSwitches } from "$lib/server/service-switches";
 
 const PatientSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
-  email: z.string().email().optional().or(z.literal("")),
+  email: z.string().email("E-mail inválido").min(1, "E-mail é obrigatório"),
   phone: z.string().optional(),
   session_fee: z.coerce.number().nonnegative().optional(),
   google_calendar_attendee_email: z
@@ -119,7 +119,7 @@ export const actions: Actions = {
       .from("patients")
       .update({
         name: p.name,
-        email: p.email || null,
+        email: p.email,
         phone: p.phone || null,
         session_fee: p.session_fee ?? null,
         google_calendar_attendee_email: calendarEmail,

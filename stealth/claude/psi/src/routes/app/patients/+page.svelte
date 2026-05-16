@@ -12,7 +12,7 @@
 			patients: Array<{
 				id: string;
 				name: string;
-				email: string | null;
+				email: string;
 				phone: string | null;
 				active: boolean;
 				session_fee: number | null;
@@ -29,6 +29,8 @@
 	let email = $state('');
 	let phone = $state('');
 	let session_fee = $state(untrack(() => data.defaultFee.toString()));
+
+	let canSubmit = $derived(name.trim().length > 0 && email.trim().length > 0);
 </script>
 
 <div class="space-y-8">
@@ -62,7 +64,7 @@
 				class="grid gap-4 sm:grid-cols-2"
 			>
 				<Input label="Nome" name="name" bind:value={name} required data-testid="inp-name" />
-				<Input label="E-mail" name="email" type="email" bind:value={email} data-testid="inp-email" />
+				<Input label="E-mail" name="email" type="email" bind:value={email} required data-testid="inp-email" />
 				<Input label="Telefone" name="phone" bind:value={phone} data-testid="inp-phone" />
 				<Input
 					label="Valor da consulta (R$)"
@@ -80,7 +82,7 @@
 
 				<div class="flex justify-end gap-2 sm:col-span-2">
 					<Button variant="ghost" onclick={() => (showForm = false)}>Cancelar</Button>
-					<Button type="submit" data-testid="btn-save-patient">Salvar</Button>
+					<Button type="submit" disabled={!canSubmit} data-testid="btn-save-patient">Salvar</Button>
 				</div>
 
 				{#if form?.error}
