@@ -302,6 +302,7 @@
 				{ label: 'Nome',     token: '{nome}'     },
 				{ label: 'E-mail',   token: '{email}'    },
 				{ label: 'Telefone', token: '{telefone}' },
+				{ label: 'Sessões',  token: '{Sessões}'  },
 			],
 		},
 		{
