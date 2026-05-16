@@ -15,9 +15,12 @@ npm run preview      # Preview production build
 npm run check        # Type-check (svelte-check + tsc)
 npm run lint         # Prettier + ESLint check
 npm run format       # Auto-format with Prettier
-npm run test         # Run tests (vitest)
+npm run test         # Run all tests (vitest)
 npm run test:watch   # Watch mode
 npm run test:coverage
+
+# Run a single test file
+npx vitest run src/routes/app/sessions/page.server.test.ts
 
 # Database
 npm run db:migrate   # supabase db push (apply migrations)
@@ -46,6 +49,8 @@ Three distinct areas, each with its own `+layout.server.ts` guard:
 - `event.locals.supabase` — session-bound Supabase client (anon key + cookies)
 - `event.locals.safeGetSession()` — revalidates JWT server-side via `getUser()` (never trust `getSession()` alone)
 
+Google OAuth callback at `/auth/callback` auto-creates `clinics` + `therapists` rows on first login. If the email is in `ADMIN_EMAILS`, it upserts `admins` instead.
+
 ### Two Supabase Clients
 
 - `createSupabaseServerClient(event)` — session-scoped, respects RLS. Used in most server routes.
@@ -71,14 +76,23 @@ $core        → src/lib/core
 - `$lib/integrations/llm.ts` — OpenAI-compatible HTTP client. Provider is pluggable via `LLM_BASE_URL` + `LLM_API_KEY`.
 - `$lib/integrations/elevenlabs.ts` — TTS synthesis.
 - Every LLM/TTS call **must** call `persistAIUsage()` from `$lib/server/ai-usage.ts` (uses service-role client so it never fails silently on auth issues).
-- Rate limiting via Upstash Redis sliding windows: `aiChatRateLimiter()` (per therapist/min) and `ttsRateLimiter()` (per therapist/hour).
+- Rate limiting via Upstash Redis sliding windows: `aiChatRateLimiter()` (per therapist/min) and `ttsRateLimiter()` (per therapist/hour, tracks character count not requests).
 
 ### Redis (`$lib/redis.ts`)
 
 Upstash Redis is used for two purposes:
 
 1. Rate limiting (Upstash Ratelimit)
-2. Hot chat state cache with short TTL (`psi:chat:*`) and dashboard cache (`psi:dash:*`)
+2. Hot chat state cache with short TTL (`psi:chat:*`) and dashboard cache (`psi:dash:*`, TTL 300s)
+
+### Service Switches (`$lib/server/service-switches.ts`)
+
+Kill-switches stored in the `service_switches` table, cached in-memory for 30s. Switches: `cep`, `llm`, `tts`, `redis`. Use `getServiceSwitches()` before any feature that touches those systems. Fail-open (all enabled by default if the table is unreachable).
+
+```ts
+const switches = await getServiceSwitches();
+if (!switches.llm) return fail(503, { error: 'LLM disabled' });
+```
 
 ### Data Model & RLS
 
@@ -89,10 +103,72 @@ See `MODEL.md` for the full schema. Key principles:
 - Patients never authenticate — they are Google Calendar attendees only.
 - `admins` is a global role table, independent of `clinic_id`.
 - `ai_usage_logs` is the primary observability table — log every AI call since day one.
+- `schedules(therapist_id, day_of_week, start_time)` has a unique constraint; catch Supabase error code `23505` and surface it as a friendly message.
 
 ### Svelte 5 Runes
 
-All components use Svelte 5 runes mode (`compilerOptions.runes: true` in `svelte.config.js`). Use `$state`, `$derived`, `$effect`, `$props` — not the legacy `let`/`$:` reactivity syntax.
+All components use Svelte 5 runes mode (`compilerOptions.runes: true` in `svelte.config.js`). Use `$state`, `$derived`, `$effect`, `$props` — not the legacy `let`/`$:` reactivity syntax. Use `{@render children()}` instead of `<slot>`.
+
+## Server Action Pattern
+
+All `+page.server.ts` actions follow this exact sequence:
+
+1. **Validate** — Zod schema; return `fail(400, { error: parsed.error.flatten().fieldErrors })` on failure
+2. **Auth** — `safeGetSession()` → return `fail(401)` if no user
+3. **Ownership** — query therapist by `user_id`; return `fail(403)` if not found
+4. **Mutation** — RLS-aware Supabase query; handle DB errors (e.g., `23505` unique violation)
+5. **Invalidate** — `await invalidateDashboard(therapist.id)`
+6. **Return** — `{ success: true }` or `{ success: true, action: 'actionName' }`
+
+## API Routes
+
+`/api/ai/chat` and `/api/ai/tts` both:
+
+1. Check `getServiceSwitches()` — 503 if disabled
+2. Validate body with Zod
+3. Enforce rate limits
+4. Call the integration, then `persistAIUsage()`
+5. Return JSON (chat) or binary `audio/mpeg` with `no-store` cache headers (TTS)
+
+## Core Logic (`$lib/core/`)
+
+Pure, framework-free functions — import from `$core`.
+
+- **`types.ts`** — Canonical domain types (`Patient`, `Session`, `Therapist`, `Expense`, `AIUsageLog`, etc.)
+- **`finance.ts`** — Revenue/expense calculations: `projectMonthlyRevenue()`, `actualRevenue()`, `expensesForPeriod()` (prorates recurring expenses by frequency), `patientRevenueRanking()`. All throw `RangeError` if date range is invalid.
+- **`ai-logger.ts`** — Cost computation from token/char counts. Pricing table is in-code; `priceFromUsage()` produces cost before `persistAIUsage()` insert. `aggregateUsage()` rolls up logs by period and call type.
+- **`patients.ts`** — `normalizeCPF()` (validates structure + check digits), `formatCPF()`, phone normalization, age calculation.
+
+## Utilities (`$lib/utils/`)
+
+- **`format.ts`** — pt-BR locale helpers: `formatBRL()` (guards NaN/Infinity → "—"), `formatBRLDecimal()` (for CSV export), `formatDateTime()`, `formatPhone()`.
+- **`fetch.ts`** — Retry wrapper with exponential backoff (3 retries, 500ms/1s/2s). Retries on ECONNRESET/ETIMEDOUT/ECONNREFUSED/ENOTFOUND/UND_ERR_SOCKET; throws immediately on 401/403.
+
+## Testing Patterns
+
+Test files live alongside the code they test, named `*.test.ts` (never `+*.test.ts` — the `+` prefix is reserved by SvelteKit).
+
+Supabase is mocked with a table-aware `from()` dispatcher: each table name returns its own Vitest mock chain, preventing cross-table mock collisions. Auth is mocked via a `makeLocals()` helper that builds `event.locals` with configurable user/therapist/error state, and `makeRequest()` builds `FormData` requests for action calls.
+
+```ts
+// Typical test structure
+const locals = makeLocals({ therapist: mockTherapist });
+const request = makeRequest({ scheduleId: '123' });
+const result = await actions.deleteSchedule({ locals, request });
+```
+
+## Error Handling Conventions
+
+- `fail(400, { error: fieldErrors })` — Zod validation failures (field-level)
+- `fail(401, { error: string })` — Missing/invalid session
+- `fail(403, { error: string })` — Ownership check failure
+- `throw error(404, 'Message')` — Page-level not found
+- `throw redirect(303, '/path')` — SvelteKit redirects
+- AI/integration failures are **always** logged to `ai_usage_logs` even on error; they never cause an unhandled throw.
+
+## Logger (`$lib/logger.ts`)
+
+Pino configured with ISO timestamps, stdout-only output (12-factor), and automatic redaction of `password`, `token`, `access_token`, `refresh_token`, `api_key`, and Authorization/Cookie headers.
 
 ## Key Environment Variables
 
@@ -123,8 +199,6 @@ Public (browser-safe, prefix `PUBLIC_`):
 | `bulkMarkPaid` | Mark multiple sessions paid in one `UPDATE … WHERE id = ANY(...)` call |
 | `create` | Ad-hoc session insert (not linked to a schedule) |
 
-All actions follow the same security pattern: `safeGetSession()` → therapist ownership check → RLS-aware query → `invalidateDashboard()`.
-
 ### Client features (`+page.svelte`)
 
 - **Filter bar** — patient dropdown + date range (De / Até) + status pills; client-side, no server round-trip.
@@ -138,9 +212,7 @@ All actions follow the same security pattern: `safeGetSession()` → therapist o
 
 ### Tests
 
-`src/routes/app/sessions/page.server.test.ts` — 53 Vitest tests covering all server actions with table-aware Supabase mock. Run with `npm run test`.
-
-> Note: test files in `src/routes/` must NOT start with `+` (reserved by SvelteKit router). Name them `page.server.test.ts`, not `+page.server.test.ts`.
+`src/routes/app/sessions/page.server.test.ts` — 53 Vitest tests covering all server actions with table-aware Supabase mock.
 
 ## Database Migrations
 
