@@ -307,9 +307,10 @@
 		{
 			group: 'Profissional',
 			vars: [
-				{ label: 'Nome', token: '{nome}'  },
-				{ label: 'CRP',  token: '{CRP}'   },
-				{ label: 'CNPJ', token: '{CNPJ}'  },
+				{ label: 'Terapeuta', token: '{Terapeuta}' },
+				{ label: 'CRP',       token: '{CRP}'       },
+				{ label: 'CNPJ',      token: '{CNPJ}'      },
+				{ label: 'Clínica',   token: '{Clinica}'   },
 			],
 		},
 	];
