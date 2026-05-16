@@ -15,13 +15,6 @@ export interface Relative {
   email?: string;
 }
 
-export interface InvoiceData {
-  cpf?: string;
-  address?: string;
-  phone?: string;
-  email?: string;
-}
-
 export interface Clinic {
   id: string;
   name: string;
@@ -43,7 +36,6 @@ export interface Therapist {
   email: string;
   address?: string | null;
   avatar_url?: string | null;
-  google_calendar_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -57,8 +49,6 @@ export interface Patient {
   phone?: string | null;
   address?: string | null;
   birth_date?: string | null;
-  relatives: Relative[];
-  invoice_data: InvoiceData;
   session_fee?: number | null;
   frequency?: string | null;
   active: boolean;
@@ -76,7 +66,6 @@ export interface Session {
   duration_minutes: number;
   fee?: number | null;
   status: SessionStatus;
-  google_calendar_event_id?: string | null;
   paid: boolean;
   paid_at?: string | null;
   created_at: string;
@@ -88,10 +77,8 @@ export interface FinanceEntry {
   clinic_id: string;
   therapist_id: string;
   patient_id?: string | null;
-  session_id?: string | null;
   type: FinanceEntryType;
   amount: number;
-  description?: string | null;
   occurred_at: string; // YYYY-MM-DD
   created_at: string;
 }
