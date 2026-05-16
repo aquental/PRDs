@@ -2,13 +2,14 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import type { RequestEvent } from "@sveltejs/kit";
 import { publicConfig } from "$lib/config";
 import { serverConfig } from "$lib/config.server";
+import type { Database } from "./database.types";
 
 /**
  * Cliente Supabase vinculado à sessão do request atual.
  * Instanciado em `hooks.server.ts` e disponível via `event.locals.supabase`.
  */
 export function createSupabaseServerClient(event: RequestEvent) {
-  return createServerClient(
+  return createServerClient<Database>(
     publicConfig.PUBLIC_SUPABASE_URL,
     publicConfig.PUBLIC_SUPABASE_ANON_KEY,
     {
@@ -33,7 +34,7 @@ export function createSupabaseServerClient(event: RequestEvent) {
 import { createClient } from "@supabase/supabase-js";
 export function createSupabaseAdminClient() {
   const cfg = serverConfig();
-  return createClient(
+  return createClient<Database>(
     publicConfig.PUBLIC_SUPABASE_URL,
     cfg.SUPABASE_SERVICE_ROLE_KEY,
     {

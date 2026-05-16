@@ -32,11 +32,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   const email = user.email?.toLowerCase();
   if (email && cfg.ADMIN_EMAILS.includes(email)) {
     await admin.from("admins").upsert(
-      {
-        user_id: user.id,
-        email,
-        name: user.user_metadata?.full_name ?? null,
-      },
+      { user_id: user.id, email },
       { onConflict: "user_id" },
     );
     throw redirect(303, "/admin");

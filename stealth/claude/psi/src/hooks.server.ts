@@ -9,7 +9,8 @@ import { logger } from "$lib/logger";
  *   · event.locals.safeGetSession — validação server-side do JWT via getUser()
  */
 const supabaseHandle: Handle = async ({ event, resolve }) => {
-  event.locals.supabase = createSupabaseServerClient(event);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  event.locals.supabase = createSupabaseServerClient(event) as any;
 
   event.locals.safeGetSession = async () => {
     const {

@@ -2,6 +2,9 @@ import type { PageServerLoad } from "./$types";
 import { createSupabaseAdminClient } from "$lib/supabase/server";
 import { aggregateUsage } from "$core/ai-logger";
 import type { AIUsageLog } from "$core/types";
+import type { Database } from "$lib/supabase/database.types";
+
+type AICallType = Database["public"]["Enums"]["ai_call_type"];
 
 const PAGE_SIZE = 50;
 
@@ -34,7 +37,7 @@ export const load: PageServerLoad = async ({ url }) => {
     .order("created_at", { ascending: false })
     .range(offset, offset + PAGE_SIZE - 1);
 
-  if (callType) logsQuery = logsQuery.eq("call_type", callType);
+  if (callType) logsQuery = logsQuery.eq("call_type", callType as AICallType);
   if (status) logsQuery = logsQuery.eq("status", status);
   if (therapistId) logsQuery = logsQuery.eq("therapist_id", therapistId);
 
@@ -46,7 +49,7 @@ export const load: PageServerLoad = async ({ url }) => {
     .lte("created_at", toISO)
     .limit(5000);
 
-  if (callType) aggQuery = aggQuery.eq("call_type", callType);
+  if (callType) aggQuery = aggQuery.eq("call_type", callType as AICallType);
   if (status) aggQuery = aggQuery.eq("status", status);
   if (therapistId) aggQuery = aggQuery.eq("therapist_id", therapistId);
 

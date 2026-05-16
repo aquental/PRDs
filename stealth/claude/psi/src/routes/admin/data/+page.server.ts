@@ -1,6 +1,9 @@
 import { fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 import { createSupabaseAdminClient } from "$lib/supabase/server";
+import type { Database } from "$lib/supabase/database.types";
+
+type ExpenseFrequency = Database["public"]["Enums"]["expense_frequency"];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -351,7 +354,7 @@ export const actions: Actions = {
       clinic_id: therapist.clinic_id,
       therapist_id: therapistId,
       name: str(fd, "name"),
-      email: strOrNull(fd, "email"),
+      email: str(fd, "email"),
       phone: strOrNull(fd, "phone"),
       address: strOrNull(fd, "address"),
       birth_date: strOrNull(fd, "birth_date"),
@@ -376,7 +379,7 @@ export const actions: Actions = {
       .from("patients")
       .update({
         name: str(fd, "name"),
-        email: strOrNull(fd, "email"),
+        email: str(fd, "email"),
         phone: strOrNull(fd, "phone"),
         address: strOrNull(fd, "address"),
         birth_date: strOrNull(fd, "birth_date"),
@@ -418,7 +421,7 @@ export const actions: Actions = {
       clinic_id: clinicId,
       description: str(fd, "description"),
       amount: num(fd, "amount"),
-      frequency: str(fd, "frequency") || "monthly",
+      frequency: (str(fd, "frequency") || "monthly") as ExpenseFrequency,
       month: num(fd, "month", 0),
       due_day: numOrNull(fd, "due_day"),
       due_date: strOrNull(fd, "due_date"),
@@ -444,7 +447,7 @@ export const actions: Actions = {
       .update({
         description: str(fd, "description"),
         amount: num(fd, "amount"),
-        frequency: str(fd, "frequency") || "monthly",
+        frequency: (str(fd, "frequency") || "monthly") as ExpenseFrequency,
         month: num(fd, "month", 0),
         due_day: numOrNull(fd, "due_day"),
         due_date: strOrNull(fd, "due_date"),

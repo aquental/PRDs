@@ -4,8 +4,9 @@ import {
   type CookieOptions,
 } from "@supabase/ssr";
 import { publicConfig } from "$lib/config";
+import type { Database } from "./database.types";
 
-export const supabase = createBrowserClient(
+export const supabase = createBrowserClient<Database>(
   publicConfig.PUBLIC_SUPABASE_URL,
   publicConfig.PUBLIC_SUPABASE_ANON_KEY,
   {

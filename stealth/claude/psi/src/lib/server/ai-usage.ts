@@ -6,6 +6,7 @@
 import { createSupabaseAdminClient } from "$lib/supabase/server";
 import { priceFromUsage, type AIUsageInput } from "$lib/core/ai-logger";
 import { logger } from "$lib/logger";
+import type { Json } from "$lib/supabase/database.types";
 
 export async function persistAIUsage(input: AIUsageInput): Promise<void> {
   const admin = createSupabaseAdminClient();
@@ -24,7 +25,7 @@ export async function persistAIUsage(input: AIUsageInput): Promise<void> {
     duration_ms: input.duration_ms ?? null,
     status: input.status ?? "success",
     error_message: input.error_message ?? null,
-    metadata: input.metadata ?? {},
+    metadata: (input.metadata ?? {}) as unknown as Json,
   });
 
   if (error) {

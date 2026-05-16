@@ -56,6 +56,18 @@ Google OAuth callback at `/auth/callback` auto-creates `clinics` + `therapists` 
 - `createSupabaseServerClient(event)` — session-scoped, respects RLS. Used in most server routes.
 - `createSupabaseAdminClient()` — service-role, **bypasses RLS**. Use only for admin routes, background jobs, and `ai_usage_logs` inserts (which need to write even without an active session).
 
+Both clients are typed with `Database` from `$lib/supabase/database.types.ts` (generated from the live schema). Call them directly in routes to get full query type inference. **Do not use `event.locals.supabase` for typed access** — it is intentionally left as `SupabaseClient<any>` due to a generic-parameter incompatibility between `@supabase/ssr@0.5.x` and `@supabase/supabase-js@2.104+`.
+
+### Database Types
+
+`$lib/supabase/database.types.ts` — generated from the live Supabase schema. Regenerate after any migration with:
+```bash
+# Via MCP or Supabase CLI:
+supabase gen types typescript --project-id fqzvggnwfzhiccgoolhr > src/lib/supabase/database.types.ts
+```
+
+Exported helpers: `Database`, `Tables<T>`, `TablesInsert<T>`, `TablesUpdate<T>`, `Enums<T>`, `Json`, `Constants`.
+
 ### Config System
 
 - `$lib/config.ts` — Zod-validated public env vars (`PUBLIC_*`). Safe to import in browser code.
