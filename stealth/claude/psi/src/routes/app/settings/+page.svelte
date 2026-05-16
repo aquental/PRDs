@@ -172,6 +172,13 @@
 		return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 	}
 
+	function formatPhone(phone: string): string {
+		const d = phone.replace(/\D/g, '');
+		if (d.length === 11) return `(${d.slice(0, 2)})${d.slice(2, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
+		if (d.length === 10) return `(${d.slice(0, 2)})${d.slice(2, 6)}-${d.slice(6)}`;
+		return phone;
+	}
+
 	function formatDue(expense: Expense): string {
 		if (expense.frequency === 'one_time' && expense.due_date) {
 			return new Date(expense.due_date + 'T00:00:00').toLocaleDateString('pt-BR');
@@ -452,7 +459,7 @@
 					</div>
 					<div>
 						<dt class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Telefone</dt>
-						<dd class="mt-1 font-medium text-ink dark:text-bg">{data.therapist.phone ?? '—'}</dd>
+						<dd class="mt-1 font-medium text-ink dark:text-bg">{data.therapist.phone ? formatPhone(data.therapist.phone) : '—'}</dd>
 					</div>
 					<div>
 						<dt class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Valor da sessão</dt>

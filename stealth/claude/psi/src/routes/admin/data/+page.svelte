@@ -11,7 +11,7 @@
 		ClinicRow, TherapistRow, PatientRow, ExpenseRow,
 		TherapistOption
 	} from './+page.server';
-	import { formatBRL } from '$lib/utils/format';
+	import { formatBRL, formatPhone } from '$lib/utils/format';
 
 	interface Props {
 		data: {
@@ -438,7 +438,7 @@
 									<td class="px-5 py-3 text-ink-muted">{t.email}</td>
 									<td class="px-5 py-3 text-ink-muted">{t.crp}</td>
 									<td class="px-5 py-3 text-ink-muted">{t.cnpj ?? '—'}</td>
-									<td class="px-5 py-3 text-ink-muted">{t.phone ?? '—'}</td>
+									<td class="px-5 py-3 text-ink-muted">{t.phone ? formatPhone(t.phone) : '—'}</td>
 									<td class="px-5 py-3 text-ink-muted">{fmtDate(t.created_at)}</td>
 									<td class="px-4 py-3">
 										<div class="flex items-center gap-1">
@@ -502,7 +502,7 @@
 									<tr class="hover:bg-primary-50/30 dark:hover:bg-white/[0.02]">
 										<td class="px-5 py-3 font-medium text-ink dark:text-bg">{p.name}</td>
 										<td class="px-5 py-3 text-ink-muted">{p.email ?? '—'}</td>
-										<td class="px-5 py-3 text-ink-muted">{p.phone ?? '—'}</td>
+										<td class="px-5 py-3 text-ink-muted">{p.phone ? formatPhone(p.phone) : '—'}</td>
 										<td class="px-5 py-3 text-ink-muted">{fmtDate(p.birth_date)}</td>
 										<td class="px-5 py-3 text-right tabular-nums font-medium">
 											{p.session_fee != null ? formatBRL(p.session_fee) : '—'}

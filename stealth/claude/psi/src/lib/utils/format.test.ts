@@ -132,24 +132,35 @@ describe("formatDateTime", () => {
 // ── formatPhone ──────────────────────────────────────────────────────────────
 
 describe("formatPhone", () => {
-  it("formats 11-digit mobile number as (DD) NNNNN-NNNN", () => {
-    expect(formatPhone("11999990001")).toBe("(11) 99999-0001");
+  it("formats 11-digit mobile as (DD)D-DDDD-DDDD", () => {
+    expect(formatPhone("11976047903")).toBe("(11)9-7604-7903");
   });
 
-  it("formats 10-digit landline number as (DD) NNNN-NNNN", () => {
-    expect(formatPhone("1133330001")).toBe("(11) 3333-0001");
+  it("formats 11-digit mobile with leading 9 correctly", () => {
+    expect(formatPhone("11999990001")).toBe("(11)9-9999-0001");
   });
 
-  it("returns the original string for unexpected lengths", () => {
+  it("formats 10-digit landline as (DD)DDDD-DDDD", () => {
+    expect(formatPhone("1133330001")).toBe("(11)3333-0001");
+  });
+
+  it("returns the original string for unexpected lengths (short)", () => {
     expect(formatPhone("1234")).toBe("1234");
+  });
+
+  it("returns the original string for unexpected lengths (long)", () => {
     expect(formatPhone("123456789012")).toBe("123456789012");
   });
 
-  it("strips formatting characters before re-formatting 11-digit numbers", () => {
-    expect(formatPhone("(11) 99999-0001")).toBe("(11) 99999-0001");
+  it("strips existing formatting before re-formatting 11-digit mobile", () => {
+    expect(formatPhone("(11) 99999-0001")).toBe("(11)9-9999-0001");
   });
 
-  it("strips formatting characters before re-formatting 10-digit numbers", () => {
-    expect(formatPhone("(11) 3333-0001")).toBe("(11) 3333-0001");
+  it("strips existing formatting before re-formatting 10-digit landline", () => {
+    expect(formatPhone("(11) 3333-0001")).toBe("(11)3333-0001");
+  });
+
+  it("handles digits-only input for 11-digit mobile", () => {
+    expect(formatPhone("11976047903")).toBe("(11)9-7604-7903");
   });
 });

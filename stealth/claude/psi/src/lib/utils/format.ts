@@ -48,9 +48,11 @@ function formatCPF(cpf: string): string {
 
 export function formatPhone(phone: string): string {
   const d = phone.replace(/\D/g, "");
+  // 11-digit mobile: (DD)D-DDDD-DDDD  e.g. (11)9-7604-7903
   if (d.length === 11)
-    return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+    return `(${d.slice(0, 2)})${d.slice(2, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
+  // 10-digit landline: (DD)DDDD-DDDD  e.g. (11)3333-0001
   if (d.length === 10)
-    return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+    return `(${d.slice(0, 2)})${d.slice(2, 6)}-${d.slice(6)}`;
   return phone;
 }
