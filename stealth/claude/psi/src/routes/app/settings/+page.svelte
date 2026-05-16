@@ -42,6 +42,7 @@
 		id: string;
 		title: string;
 		category: 'anamnese' | 'evolucao' | 'relatorio' | 'consentimento' | 'outro';
+		media: 'whatsapp' | 'email' | 'print';
 		body: string;
 		is_active: boolean;
 	}
@@ -269,23 +270,30 @@
 		outro: 'Outro',
 	};
 
+	const MEDIA_OPTIONS: { value: 'whatsapp' | 'email' | 'print'; label: string }[] = [
+		{ value: 'whatsapp', label: 'WhatsApp' },
+		{ value: 'email',    label: 'E-mail'   },
+		{ value: 'print',    label: 'Impress'  },
+	];
+
 	interface TemplateForm {
 		id: string;
 		title: string;
 		category: 'anamnese' | 'evolucao' | 'relatorio' | 'consentimento' | 'outro';
+		media: 'whatsapp' | 'email' | 'print';
 		body: string;
 	}
 
 	let showTemplateForm = $state(false);
-	let tpl = $state<TemplateForm>({ id: '', title: '', category: 'anamnese', body: '' });
+	let tpl = $state<TemplateForm>({ id: '', title: '', category: 'anamnese', media: 'whatsapp', body: '' });
 
 	function startNewTemplate() {
-		tpl = { id: '', title: '', category: 'anamnese', body: '' };
+		tpl = { id: '', title: '', category: 'anamnese', media: 'whatsapp', body: '' };
 		showTemplateForm = true;
 	}
 
 	function startEditTemplate(t: Template) {
-		tpl = { id: t.id, title: t.title, category: t.category, body: t.body };
+		tpl = { id: t.id, title: t.title, category: t.category, media: t.media, body: t.body };
 		showTemplateForm = true;
 	}
 
@@ -1003,7 +1011,7 @@
 						<input type="hidden" name="id" value={tpl.id} />
 					{/if}
 
-					<div class="grid gap-4 sm:grid-cols-2">
+					<div class="grid gap-4 sm:grid-cols-3">
 						<Input label="Título" name="title" bind:value={tpl.title} required />
 						<div class="space-y-1">
 							<label class="block text-sm font-medium text-ink dark:text-bg" for="tpl-category">Categoria</label>
@@ -1015,6 +1023,19 @@
 							>
 								{#each Object.entries(CATEGORY_LABELS) as [val, label]}
 									<option value={val}>{label}</option>
+								{/each}
+							</select>
+						</div>
+						<div class="space-y-1">
+							<label class="block text-sm font-medium text-ink dark:text-bg" for="tpl-media">Meio</label>
+							<select
+								id="tpl-media"
+								name="media"
+								bind:value={tpl.media}
+								class="w-full rounded-lg border border-primary-100/40 bg-bg px-3 py-2 text-sm text-ink dark:border-white/10 dark:bg-ink dark:text-bg"
+							>
+								{#each MEDIA_OPTIONS as opt}
+									<option value={opt.value}>{opt.label}</option>
 								{/each}
 							</select>
 						</div>

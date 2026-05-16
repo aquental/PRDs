@@ -28,6 +28,7 @@ const ClinicSchema = z.object({
 const TemplateSchema = z.object({
   title: z.string().min(1),
   category: z.enum(["anamnese", "evolucao", "relatorio", "consentimento", "outro"]),
+  media: z.enum(["whatsapp", "email", "print"]).default("whatsapp"),
   body: z.string().default(""),
 });
 
@@ -280,6 +281,7 @@ export const actions: Actions = {
       therapist_id: therapist.id,
       title: parsed.data.title,
       category: parsed.data.category,
+      media: parsed.data.media,
       body: parsed.data.body,
     });
 
@@ -307,7 +309,7 @@ export const actions: Actions = {
 
     const { error: err } = await locals.supabase
       .from("templates")
-      .update({ title: parsed.data.title, category: parsed.data.category, body: parsed.data.body })
+      .update({ title: parsed.data.title, category: parsed.data.category, media: parsed.data.media, body: parsed.data.body })
       .eq("id", id)
       .eq("clinic_id", therapist.clinic_id);
 

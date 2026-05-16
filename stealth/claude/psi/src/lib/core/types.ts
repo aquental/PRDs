@@ -102,6 +102,7 @@ export interface Expense {
 }
 
 export type TemplateCategory = "anamnese" | "evolucao" | "relatorio" | "consentimento" | "outro";
+export type TemplateMedia = "whatsapp" | "email" | "print";
 
 export const CATEGORY_LABELS: Record<TemplateCategory, string> = {
   anamnese: "Anamnese",
@@ -116,6 +117,7 @@ export interface Template {
   clinic_id: string;
   therapist_id: string;
   category: TemplateCategory;
+  media: TemplateMedia;
   title: string;
   body: string;
   is_active: boolean;

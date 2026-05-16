@@ -699,6 +699,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          media: Database["public"]["Enums"]["template_media"]
           therapist_id: string
           title: string
           updated_at: string
@@ -710,6 +711,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          media?: Database["public"]["Enums"]["template_media"]
           therapist_id: string
           title: string
           updated_at?: string
@@ -721,6 +723,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          media?: Database["public"]["Enums"]["template_media"]
           therapist_id?: string
           title?: string
           updated_at?: string
@@ -826,6 +829,7 @@ export type Database = {
         | "relatorio"
         | "consentimento"
         | "outro"
+      template_media: "whatsapp" | "email" | "print"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -974,6 +978,7 @@ export const Constants = {
         "consentimento",
         "outro",
       ],
+      template_media: ["whatsapp", "email", "print"],
     },
   },
 } as const
