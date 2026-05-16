@@ -74,6 +74,7 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
     { data: address },
     { data: relatives },
     { data: schedules },
+    { data: templates },
     switches,
   ] = await Promise.all([
     locals.supabase
@@ -101,6 +102,11 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
       .eq("active", true)
       .order("day_of_week")
       .order("start_time"),
+    locals.supabase
+      .from("templates")
+      .select("id, title, category, media, body, patient_id")
+      .eq("therapist_id", therapist.id)
+      .eq("is_active", true),
     getServiceSwitches(),
   ]);
 
@@ -110,6 +116,12 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
     address: address ?? null,
     relatives: relatives ?? [],
     schedules: schedules ?? [],
+    templates: (templates ?? []).sort((a, b) => {
+      const aSpec = a.patient_id === patient.id ? 0 : 1;
+      const bSpec = b.patient_id === patient.id ? 0 : 1;
+      if (aSpec !== bSpec) return aSpec - bSpec;
+      return a.title.localeCompare(b.title, "pt-BR");
+    }),
     cepEnabled: switches.cep,
   };
 };

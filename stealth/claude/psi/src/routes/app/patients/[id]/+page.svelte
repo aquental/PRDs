@@ -5,8 +5,9 @@
 	import Button from '$lib/ui/Button.svelte';
 	import { enhance } from '$app/forms';
 	import { formatBRL, formatScheduledAt, formatPhone } from '$lib/utils/format';
-	import { PencilSimple, Warning, CircleNotch, WarningCircle, Plus, Trash, MapPin, UsersThree } from 'phosphor-svelte';
+	import { PencilSimple, Warning, CircleNotch, WarningCircle, Plus, Trash, MapPin, UsersThree, Tag } from 'phosphor-svelte';
 	import { PUBLIC_CEP_API_URL } from '$env/static/public';
+	import { CATEGORY_LABELS, type TemplateCategory } from '$core/types';
 
 	interface Session {
 		id: string;
@@ -39,6 +40,14 @@
 		cidade: string;
 		estado: string;
 	}
+	interface Template {
+		id: string;
+		title: string;
+		category: string;
+		media: string;
+		body: string;
+		patient_id: string | null;
+	}
 	interface Props {
 		data: {
 			patient: {
@@ -54,6 +63,7 @@
 			schedules: Schedule[];
 			address: PatientAddress | null;
 			relatives: Relative[];
+			templates: Template[];
 			cepEnabled: boolean;
 		};
 		form: { error?: unknown; success?: boolean | string } | null;
@@ -166,6 +176,33 @@
 		const l2 = [a.cidade, a.estado].filter(Boolean).join(' - ');
 		return [l1, a.complemento, l2, a.cep].filter(Boolean).join(' • ');
 	});
+
+	// ── Mensagens / Modal de envio ────────────────────────────
+	let sendDialog = $state<HTMLDialogElement | null>(null);
+	let selectedTemplate = $state<Template | null>(null);
+	let modalBody = $state('');
+
+	function openSendModal(t: Template) {
+		selectedTemplate = t;
+		modalBody = t.body;
+		sendDialog?.showModal();
+	}
+
+	function sendWhatsApp() {
+		if (!selectedTemplate || !data.patient.phone) return;
+		const digits = data.patient.phone.replace(/\D/g, '');
+		window.open(`https://wa.me/${digits}?text=${encodeURIComponent(modalBody)}`, '_blank');
+		sendDialog?.close();
+	}
+
+	function sendEmail() {
+		if (!selectedTemplate || !data.patient.email) return;
+		window.open(
+			`mailto:${data.patient.email}?subject=${encodeURIComponent(selectedTemplate.title)}&body=${encodeURIComponent(modalBody)}`,
+			'_blank'
+		);
+		sendDialog?.close();
+	}
 </script>
 
 <div class="space-y-8">
@@ -251,15 +288,35 @@
 			</dl>
 		</Card>
 
-		<Card title="Frequência e valor">
-			<dl class="space-y-3 text-sm">
-				<div>
-					<dt class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Valor da consulta</dt>
-					<dd class="mt-1 text-2xl font-bold tabular-nums text-ink dark:text-bg">
-						{formatBRL(data.patient.session_fee)}
-					</dd>
-				</div>
-			</dl>
+		<Card title="Mensagens">
+			{#if data.templates.length === 0}
+				<p class="py-4 text-center text-sm text-ink-muted">
+					Nenhum modelo cadastrado.
+					<a href="/app/settings" class="text-primary underline underline-offset-2">Adicionar em Configurações</a>
+				</p>
+			{:else}
+				<ul class="-mx-1 divide-y divide-primary-100/40 dark:divide-white/5">
+					{#each data.templates as t (t.id)}
+						<li>
+							<button
+								type="button"
+								onclick={() => openSendModal(t)}
+								class="flex w-full items-center gap-2.5 rounded px-1 py-2.5 text-left text-sm transition hover:bg-primary-50 dark:hover:bg-primary-900/20"
+							>
+								<span class="shrink-0 rounded-full bg-primary-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary dark:bg-primary-900/40 dark:text-primary-200">
+									{CATEGORY_LABELS[t.category as TemplateCategory]}
+								</span>
+								<span class="flex-1 truncate font-medium text-ink dark:text-bg">{t.title}</span>
+								{#if t.patient_id === data.patient.id}
+									<span title="Modelo exclusivo para este paciente">
+										<Tag size={14} class="shrink-0 text-primary" />
+									</span>
+								{/if}
+							</button>
+						</li>
+					{/each}
+				</ul>
+			{/if}
 		</Card>
 
 		<Card title="Resumo de sessões">
@@ -498,6 +555,60 @@
 			{/if}
 		</div>
 	</div>
+
+	<!-- ── Modal: Enviar mensagem ───────────────────────────── -->
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
+	<dialog
+		bind:this={sendDialog}
+		onclick={(e) => { if (e.target === sendDialog) sendDialog?.close(); }}
+		class="m-auto w-full max-w-lg rounded-xl bg-bg p-0 shadow-2xl backdrop:bg-black/50 dark:bg-surface"
+	>
+		{#if selectedTemplate}
+			<div class="flex items-center justify-between border-b border-primary-100/40 px-6 py-4 dark:border-white/5">
+				<div>
+					<p class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Enviar mensagem</p>
+					<h2 class="font-heading text-base font-semibold text-ink dark:text-bg">{selectedTemplate.title}</h2>
+				</div>
+				<button
+					type="button"
+					onclick={() => sendDialog?.close()}
+					class="rounded p-1 text-ink-muted transition hover:text-ink dark:hover:text-bg"
+					aria-label="Fechar"
+				>
+					✕
+				</button>
+			</div>
+			<div class="space-y-4 px-6 py-5">
+				<p class="text-sm text-ink-muted">
+					Paciente: <span class="font-medium text-ink dark:text-bg">{data.patient.name}</span>
+				</p>
+				<div>
+					<label for="modal-body" class="label">Mensagem</label>
+					<textarea
+						id="modal-body"
+						bind:value={modalBody}
+						rows="8"
+						class="input w-full resize-y"
+					></textarea>
+				</div>
+				{#if !data.patient.phone && !data.patient.email}
+					<p class="flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400">
+						<Warning size={14} weight="fill" />
+						Paciente sem telefone ou e-mail cadastrado.
+					</p>
+				{/if}
+			</div>
+			<div class="flex justify-end gap-2 border-t border-primary-100/40 px-6 py-4 dark:border-white/5">
+				<Button variant="ghost" onclick={() => sendDialog?.close()}>Cancelar</Button>
+				{#if data.patient.email}
+					<Button variant="ghost" onclick={sendEmail}>E-mail</Button>
+				{/if}
+				{#if data.patient.phone}
+					<Button onclick={sendWhatsApp}>WhatsApp</Button>
+				{/if}
+			</div>
+		{/if}
+	</dialog>
 
 	<Card title="Histórico de sessões">
 		{#if data.sessions.length === 0}

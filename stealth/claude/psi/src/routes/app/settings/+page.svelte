@@ -275,7 +275,7 @@
 	const MEDIA_OPTIONS: { value: 'whatsapp' | 'email' | 'print'; label: string }[] = [
 		{ value: 'whatsapp', label: 'WhatsApp' },
 		{ value: 'email',    label: 'E-mail'   },
-		{ value: 'print',    label: 'Impress'  },
+		{ value: 'print',    label: 'Impressão'  },
 	];
 
 	interface TemplateForm {
