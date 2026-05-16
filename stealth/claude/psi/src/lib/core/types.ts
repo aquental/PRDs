@@ -4,6 +4,7 @@
  */
 
 export type SessionStatus = "scheduled" | "completed" | "cancelled" | "no_show";
+export type SessionFrequency = "weekly" | "biweekly" | "monthly" | "detached";
 export type FinanceEntryType = "revenue" | "expense";
 export type AICallType = "llm_chat" | "tts_synthesis" | "stt_transcription";
 export type ChatMessageRole = "user" | "assistant" | "system" | "tool";
@@ -66,6 +67,7 @@ export interface Session {
   duration_minutes: number;
   fee?: number | null;
   status: SessionStatus;
+  frequency: SessionFrequency;
   paid: boolean;
   paid_at?: string | null;
   created_at: string;

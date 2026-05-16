@@ -8,7 +8,7 @@ const ScheduleSchema = z.object({
   day_of_week: z.coerce.number().int().min(1).max(5),
   start_time: z.string().regex(/^\d{2}:\d{2}$/),
   duration_minutes: z.coerce.number().int().positive().default(50),
-  frequency: z.enum(["weekly", "biweekly"]).default("weekly"),
+  frequency: z.enum(["weekly", "biweekly", "monthly", "detached"]).default("weekly"),
   fee: z.coerce.number().nonnegative().optional(),
 });
 
@@ -20,7 +20,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
       locals.supabase
         .from("sessions")
         .select(
-          "id, scheduled_at, duration_minutes, fee, status, paid, patient_id, patients(name)",
+          "id, scheduled_at, duration_minutes, fee, status, paid, frequency, patient_id, patients(name)",
         )
         .eq("therapist_id", therapist.id)
         .order("scheduled_at", { ascending: false })
@@ -230,6 +230,7 @@ export const actions: Actions = {
       schedule_id: z.string().uuid(),
       day_of_week: z.coerce.number().int().min(1).max(5),
       start_time: z.string().regex(/^\d{2}:\d{2}$/),
+      frequency: z.enum(["weekly", "biweekly", "monthly", "detached"]).default("weekly"),
     });
     const parsed = MoveSchema.safeParse(Object.fromEntries(fd));
     if (!parsed.success)
@@ -240,6 +241,7 @@ export const actions: Actions = {
       .update({
         day_of_week: parsed.data.day_of_week,
         start_time: parsed.data.start_time,
+        frequency: parsed.data.frequency,
       })
       .eq("id", parsed.data.schedule_id)
       .eq("therapist_id", therapist.id);

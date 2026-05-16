@@ -627,6 +627,7 @@ export type Database = {
           created_at: string
           duration_minutes: number
           fee: number | null
+          frequency: Database["public"]["Enums"]["schedule_frequency"]
           id: string
           paid: boolean
           paid_at: string | null
@@ -641,6 +642,7 @@ export type Database = {
           created_at?: string
           duration_minutes?: number
           fee?: number | null
+          frequency?: Database["public"]["Enums"]["schedule_frequency"]
           id?: string
           paid?: boolean
           paid_at?: string | null
@@ -655,6 +657,7 @@ export type Database = {
           created_at?: string
           duration_minutes?: number
           fee?: number | null
+          frequency?: Database["public"]["Enums"]["schedule_frequency"]
           id?: string
           paid?: boolean
           paid_at?: string | null
@@ -764,7 +767,7 @@ export type Database = {
         | "biweekly"
         | "semestral"
       finance_entry_type: "revenue" | "expense"
-      schedule_frequency: "weekly" | "biweekly"
+      schedule_frequency: "weekly" | "biweekly" | "monthly" | "detached"
       session_status: "scheduled" | "completed" | "cancelled" | "no_show"
     }
     CompositeTypes: {
@@ -905,7 +908,7 @@ export const Constants = {
         "semestral",
       ],
       finance_entry_type: ["revenue", "expense"],
-      schedule_frequency: ["weekly", "biweekly"],
+      schedule_frequency: ["weekly", "biweekly", "monthly", "detached"],
       session_status: ["scheduled", "completed", "cancelled", "no_show"],
     },
   },

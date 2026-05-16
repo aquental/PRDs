@@ -46,6 +46,7 @@ const makeSession = (overrides: Partial<Session> = {}): Session => ({
   scheduled_at: "2024-01-15T10:00:00Z",
   duration_minutes: 50,
   status: "completed",
+  frequency: "weekly",
   paid: false,
   created_at: "2024-01-15T00:00:00Z",
   updated_at: "2024-01-15T00:00:00Z",

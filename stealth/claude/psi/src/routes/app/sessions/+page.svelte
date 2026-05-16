@@ -13,6 +13,7 @@
 		duration_minutes: number;
 		fee: number | null;
 		status: string;
+		frequency: string;
 		paid: boolean;
 		patient_id: string;
 		patients: { name: string } | null;
@@ -117,7 +118,7 @@
 		no_show: 'bg-secondary-50 text-secondary-700 dark:bg-secondary-900/30 dark:text-secondary-300'
 	};
 
-	const freqLabel: Record<string, string> = { weekly: 'Semanal', biweekly: 'Quinzenal' };
+	const freqLabel: Record<string, string> = { weekly: 'Semanal', biweekly: 'Quinzenal', monthly: 'Mensal', detached: 'Avulso' };
 
 	// ── Filtering ─────────────────────────────────────────────
 	let filterPatientId = $state('');
@@ -132,6 +133,7 @@
 	let editingSlotId = $state<string | null>(null);
 	let editDay = $state('');
 	let editTime = $state('');
+	let editFrequency = $state('weekly');
 
 	interface ConflictInfo { name: string; day: string; time: string }
 	let conflictModal = $state<ConflictInfo | null>(null);
@@ -358,6 +360,8 @@
 						data-testid="sel-frequency">
 						<option value="weekly">Semanal</option>
 						<option value="biweekly">Quinzenal</option>
+						<option value="monthly">Mensal</option>
+						<option value="detached">Avulso</option>
 					</select>
 				</div>
 
@@ -481,6 +485,15 @@
 																{/each}
 															</select>
 														</div>
+														<div>
+															<label for="edit-freq-{slot.id}" class="label text-[10px]">Frequência</label>
+															<select id="edit-freq-{slot.id}" name="frequency" class="input text-xs py-1" bind:value={editFrequency}>
+																<option value="weekly">Semanal</option>
+																<option value="biweekly">Quinzenal</option>
+																<option value="monthly">Mensal</option>
+																<option value="detached">Avulso</option>
+															</select>
+														</div>
 														<div class="flex gap-1 justify-end">
 															<button type="button" class="btn btn-ghost text-[10px] px-2 py-1" onclick={() => (editingSlotId = null)}>✕</button>
 															<button type="submit" class="btn btn-primary text-[10px] px-2 py-1">Mover</button>
@@ -504,7 +517,7 @@
 															<button
 																type="button"
 																class="rounded p-0.5 text-primary-600 hover:bg-primary-200 dark:hover:bg-primary-800"
-																onclick={() => { editingSlotId = slot.id; editDay = String(slot.day_of_week); editTime = slot.start_time.slice(0, 5); }}
+																onclick={() => { editingSlotId = slot.id; editDay = String(slot.day_of_week); editTime = slot.start_time.slice(0, 5); editFrequency = slot.frequency; }}
 																aria-label="Editar horário de {slot.patients?.name}"
 															>
 																<PencilSimple size={12} weight="bold" />
