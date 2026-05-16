@@ -110,6 +110,38 @@ Public (browser-safe, prefix `PUBLIC_`):
 - `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`
 - `PUBLIC_APP_URL`, `PUBLIC_FEATURE_VOICE_CHAT`, `PUBLIC_FEATURE_TELEGRAM_OMNICHANNEL`
 
+## Sessions Page (`/app/sessions`)
+
+### Server actions (`+page.server.ts`)
+
+| Action | Description |
+|---|---|
+| `createSchedule` | Insert a recurring slot (Zod-validated, unique constraint guard) |
+| `deleteSchedule` | Soft-delete via `active = false` |
+| `moveSchedule` | Update `day_of_week` + `start_time` on an existing slot (409 on conflict) |
+| `markPaid` | Flip `paid = true` + `paid_at` on a single session |
+| `bulkMarkPaid` | Mark multiple sessions paid in one `UPDATE … WHERE id = ANY(...)` call |
+| `create` | Ad-hoc session insert (not linked to a schedule) |
+
+All actions follow the same security pattern: `safeGetSession()` → therapist ownership check → RLS-aware query → `invalidateDashboard()`.
+
+### Client features (`+page.svelte`)
+
+- **Filter bar** — patient dropdown + date range (De / Até) + status pills; client-side, no server round-trip.
+- **Bulk selection** — checkbox column on desktop; floating action bar (fixed `bottom-24`) for "Marcar pagas" and "Exportar CSV" (UTF-8 BOM, semicolon separator for pt-BR Excel).
+- **Optimistic payment** — "Marcar como pago" flips UI instantly; rolls back on server failure.
+- **Inline schedule edit** — pencil icon opens a compact form inside the grid cell to move a slot to a different day/time; submits `?/moveSchedule`.
+- **Move handle** — `DotsSixVertical` icon (phosphor-svelte) on slot hover as a drag-intent affordance; full drag-and-drop is deferred.
+- **Mobile layout** — session history renders as stacked cards below `sm`; schedule renders as a day-grouped list.
+- **Accessible grid** — `role="grid"`, `scope="col/row"` on headers, `aria-label` on all interactive elements.
+- **EmptyState component** — `src/lib/ui/EmptyState.svelte` (title, description?, icon?, action? snippets).
+
+### Tests
+
+`src/routes/app/sessions/page.server.test.ts` — 53 Vitest tests covering all server actions with table-aware Supabase mock. Run with `npm run test`.
+
+> Note: test files in `src/routes/` must NOT start with `+` (reserved by SvelteKit router). Name them `page.server.test.ts`, not `+page.server.test.ts`.
+
 ## Database Migrations
 
 Migrations live in `supabase/migrations/`. Files must follow the naming convention `YYYYMMDDHHMMSS_description.sql`. Apply with `npm run db:migrate`.

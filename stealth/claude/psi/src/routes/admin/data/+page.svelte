@@ -163,7 +163,6 @@
 	let patientAddress        = $state('');
 	let patientBirthDate      = $state('');
 	let patientFee            = $state('');
-	let patientSessions       = $state(4);
 	let patientFrequency      = $state('weekly');
 	let patientActive         = $state(true);
 
@@ -171,7 +170,7 @@
 		patientMode = 'create'; patientError = '';
 		patientId = ''; patientName = ''; patientEmail = ''; patientPhone = '';
 		patientAddress = ''; patientBirthDate = ''; patientFee = '';
-		patientSessions = 4; patientFrequency = 'weekly'; patientActive = true;
+		patientFrequency = 'weekly'; patientActive = true;
 		patientDialog.showModal();
 	}
 	function openEditPatient(p: PatientRow) {
@@ -179,7 +178,7 @@
 		patientId = p.id; patientName = p.name; patientEmail = p.email ?? '';
 		patientPhone = p.phone ?? ''; patientAddress = p.address ?? '';
 		patientBirthDate = p.birth_date ?? ''; patientFee = p.session_fee?.toString() ?? '';
-		patientSessions = p.sessions_per_month; patientFrequency = p.frequency ?? 'weekly';
+		patientFrequency = p.frequency ?? 'weekly';
 		patientActive = p.active;
 		patientDialog.showModal();
 	}
@@ -902,10 +901,6 @@
 				<div>
 					<label class="label" for="pat-fee">Valor sessão (R$)</label>
 					<input id="pat-fee" name="session_fee" type="number" step="0.01" min="0" bind:value={patientFee} class="input w-full" />
-				</div>
-				<div>
-					<label class="label" for="pat-sessions">Sessões/mês</label>
-					<input id="pat-sessions" name="sessions_per_month" type="number" min="1" bind:value={patientSessions} class="input w-full" />
 				</div>
 				<div>
 					<label class="label" for="pat-freq">Frequência</label>

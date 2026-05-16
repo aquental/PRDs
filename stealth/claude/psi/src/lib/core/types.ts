@@ -60,7 +60,6 @@ export interface Patient {
   relatives: Relative[];
   invoice_data: InvoiceData;
   session_fee?: number | null;
-  sessions_per_month: number;
   frequency?: string | null;
   active: boolean;
   google_calendar_attendee_email?: string | null;

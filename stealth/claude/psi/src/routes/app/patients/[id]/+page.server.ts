@@ -9,7 +9,6 @@ const PatientSchema = z.object({
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional(),
   session_fee: z.coerce.number().nonnegative().optional(),
-  sessions_per_month: z.coerce.number().int().nonnegative().default(4),
   google_calendar_attendee_email: z
     .string()
     .email()
@@ -123,7 +122,6 @@ export const actions: Actions = {
         email: p.email || null,
         phone: p.phone || null,
         session_fee: p.session_fee ?? null,
-        sessions_per_month: p.sessions_per_month,
         google_calendar_attendee_email: calendarEmail,
         active: p.active,
       })

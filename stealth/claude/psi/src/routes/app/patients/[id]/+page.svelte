@@ -39,7 +39,6 @@
 				email: string | null;
 				phone: string | null;
 				session_fee: number | null;
-				sessions_per_month: number;
 				active: boolean;
 				google_calendar_attendee_email: string | null;
 			};
@@ -57,7 +56,6 @@
 	let email = $state(untrack(() => data.patient.email ?? ''));
 	let phone = $state(untrack(() => data.patient.phone ?? ''));
 	let session_fee = $state(untrack(() => data.patient.session_fee?.toString() ?? ''));
-	let sessions_per_month = $state(untrack(() => data.patient.sessions_per_month.toString()));
 	let gcal_email = $state(untrack(() => data.patient.google_calendar_attendee_email ?? ''));
 	let active = $state(untrack(() => data.patient.active));
 
@@ -187,7 +185,6 @@
 				<Input label="E-mail" name="email" type="email" bind:value={email} />
 				<Input label="Telefone" name="phone" bind:value={phone} />
 				<Input label="Valor da consulta (R$)" name="session_fee" type="number" bind:value={session_fee} />
-				<Input label="Sessões/mês" name="sessions_per_month" type="number" bind:value={sessions_per_month} />
 				<Input label="E-mail (Google Calendar)" name="google_calendar_attendee_email" type="email" bind:value={gcal_email} />
 				<label class="flex items-center gap-2 text-sm sm:col-span-2">
 					<input type="checkbox" name="active" bind:checked={active} value="true" class="accent-primary" />
@@ -236,12 +233,6 @@
 					<dt class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Valor da consulta</dt>
 					<dd class="mt-1 text-2xl font-bold tabular-nums text-ink dark:text-bg">
 						{formatBRL(data.patient.session_fee)}
-					</dd>
-				</div>
-				<div>
-					<dt class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Sessões por mês</dt>
-					<dd class="mt-0.5 font-medium text-ink dark:text-bg">
-						{data.patient.sessions_per_month}×
 					</dd>
 				</div>
 			</dl>

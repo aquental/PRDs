@@ -42,7 +42,7 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
   ] = await Promise.all([
     locals.supabase
       .from("patients")
-      .select("id, name, active, session_fee, sessions_per_month")
+      .select("id, name, active, session_fee")
       .eq("therapist_id", therapist.id),
     locals.supabase
       .from("finance_entries")

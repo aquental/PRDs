@@ -16,7 +16,6 @@
 				phone: string | null;
 				active: boolean;
 				session_fee: number | null;
-				sessions_per_month: number;
 			}>;
 			query: string;
 			defaultFee: number;
@@ -30,7 +29,6 @@
 	let email = $state('');
 	let phone = $state('');
 	let session_fee = $state(untrack(() => data.defaultFee.toString()));
-	let sessions_per_month = $state('4');
 </script>
 
 <div class="space-y-8">
@@ -58,7 +56,6 @@
 							showForm = false;
 							name = email = phone = '';
 							session_fee = data.defaultFee.toString();
-							sessions_per_month = '4';
 						}
 					};
 				}}
@@ -73,13 +70,6 @@
 					type="number"
 					bind:value={session_fee}
 					data-testid="inp-fee"
-				/>
-				<Input
-					label="Sessões/mês"
-					name="sessions_per_month"
-					type="number"
-					bind:value={sessions_per_month}
-					data-testid="inp-spm"
 				/>
 				<Input
 					label="E-mail (Google Calendar)"
@@ -129,7 +119,6 @@
 						<tr class="border-b border-primary-100/60 dark:border-white/5">
 							<th class="pb-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Nome</th>
 							<th class="pb-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Contato</th>
-							<th class="pb-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Freq./mês</th>
 							<th class="pb-3 text-right text-[11px] font-medium uppercase tracking-wide text-ink-muted">Valor</th>
 						</tr>
 					</thead>
@@ -148,7 +137,6 @@
 									{#if p.email}<div class="text-ink">{p.email}</div>{/if}
 									{#if p.phone}<div class="text-xs text-ink-muted">{formatPhone(p.phone)}</div>{/if}
 								</td>
-								<td class="py-3.5 text-ink-muted">{p.sessions_per_month}×</td>
 								<td class="py-3.5 text-right tabular-nums font-medium">{formatBRL(p.session_fee)}</td>
 							</tr>
 						{/each}

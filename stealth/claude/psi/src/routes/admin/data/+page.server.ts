@@ -48,7 +48,6 @@ export interface PatientRow {
   address: string | null;
   birth_date: string | null;
   session_fee: number | null;
-  sessions_per_month: number;
   frequency: string | null;
   active: boolean;
   created_at: string;
@@ -160,7 +159,7 @@ export const load: PageServerLoad = async ({ url }) => {
       admin
         .from("patients")
         .select(
-          "id,name,email,phone,address,birth_date,session_fee,sessions_per_month,frequency,active,created_at",
+          "id,name,email,phone,address,birth_date,session_fee,frequency,active,created_at",
         )
         .eq("therapist_id", therapistId!)
         .order("name"),
@@ -357,7 +356,6 @@ export const actions: Actions = {
       address: strOrNull(fd, "address"),
       birth_date: strOrNull(fd, "birth_date"),
       session_fee: numOrNull(fd, "session_fee"),
-      sessions_per_month: num(fd, "sessions_per_month", 4),
       frequency: strOrNull(fd, "frequency"),
       active: bool(fd, "active"),
     });
@@ -383,8 +381,7 @@ export const actions: Actions = {
         address: strOrNull(fd, "address"),
         birth_date: strOrNull(fd, "birth_date"),
         session_fee: numOrNull(fd, "session_fee"),
-        sessions_per_month: num(fd, "sessions_per_month", 4),
-        frequency: strOrNull(fd, "frequency"),
+          frequency: strOrNull(fd, "frequency"),
         active: bool(fd, "active"),
       })
       .eq("id", id);

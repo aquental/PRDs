@@ -187,4 +187,67 @@ export const actions: Actions = {
     await invalidateDashboard(therapist.id);
     return { success: true };
   },
+
+  bulkMarkPaid: async ({ request, locals }) => {
+    const { user } = await locals.safeGetSession();
+    if (!user) return fail(401, { error: "Não autenticado" });
+
+    const { data: therapist } = await locals.supabase
+      .from("therapists")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+    if (!therapist) return fail(403, { error: "Terapeuta não encontrado" });
+
+    const fd = await request.formData();
+    const ids = fd.getAll("session_ids") as string[];
+    if (!ids.length) return fail(400, { error: "Nenhuma sessão selecionada" });
+
+    const { error } = await locals.supabase
+      .from("sessions")
+      .update({ paid: true, paid_at: new Date().toISOString() })
+      .in("id", ids)
+      .eq("therapist_id", therapist.id);
+
+    if (error) return fail(400, { error: error.message });
+    await invalidateDashboard(therapist.id);
+    return { success: true, action: "bulkMarkPaid" };
+  },
+
+  moveSchedule: async ({ request, locals }) => {
+    const { user } = await locals.safeGetSession();
+    if (!user) return fail(401, { error: "Não autenticado" });
+
+    const { data: therapist } = await locals.supabase
+      .from("therapists")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+    if (!therapist) return fail(403, { error: "Terapeuta não encontrado" });
+
+    const fd = await request.formData();
+    const MoveSchema = z.object({
+      schedule_id: z.string().uuid(),
+      day_of_week: z.coerce.number().int().min(1).max(5),
+      start_time: z.string().regex(/^\d{2}:\d{2}$/),
+    });
+    const parsed = MoveSchema.safeParse(Object.fromEntries(fd));
+    if (!parsed.success)
+      return fail(400, { error: parsed.error.flatten().fieldErrors });
+
+    const { error } = await locals.supabase
+      .from("schedules")
+      .update({
+        day_of_week: parsed.data.day_of_week,
+        start_time: parsed.data.start_time,
+      })
+      .eq("id", parsed.data.schedule_id)
+      .eq("therapist_id", therapist.id);
+
+    if (error?.code === "23505")
+      return fail(409, { error: "Esse horário já está ocupado." });
+    if (error) return fail(400, { error: error.message });
+    await invalidateDashboard(therapist.id);
+    return { success: true, action: "moveSchedule" };
+  },
 };

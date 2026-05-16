@@ -22,7 +22,6 @@ const makePatient = (overrides: Partial<Patient> = {}): Patient => ({
   name: "Test Patient",
   relatives: [],
   invoice_data: {},
-  sessions_per_month: 4,
   active: true,
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
@@ -74,13 +73,11 @@ describe("projectMonthlyRevenue — EC-10: negative fee", () => {
       makePatient({
         id: "p1",
         session_fee: 200,
-        sessions_per_month: 4,
         active: true,
       }),
       makePatient({
         id: "p2",
         session_fee: -100,
-        sessions_per_month: 4,
         active: true,
       }),
     ];
@@ -90,7 +87,7 @@ describe("projectMonthlyRevenue — EC-10: negative fee", () => {
 
   it("returns 0 when all active patients have negative fees", () => {
     const patients = [
-      makePatient({ session_fee: -500, sessions_per_month: 4, active: true }),
+      makePatient({ session_fee: -500, active: true }),
     ];
     expect(projectMonthlyRevenue(patients)).toBe(0);
   });
@@ -103,14 +100,12 @@ describe("patientRevenueRanking — EC-10: negative fee", () => {
         id: "p1",
         name: "Alice",
         session_fee: 100,
-        sessions_per_month: 4,
         active: true,
       }),
       makePatient({
         id: "p2",
         name: "Bob",
         session_fee: -999,
-        sessions_per_month: 4,
         active: true,
       }),
     ];
@@ -132,17 +127,15 @@ describe("projectMonthlyRevenue", () => {
       makePatient({
         id: "p1",
         session_fee: 200,
-        sessions_per_month: 4,
         active: true,
       }),
       makePatient({
         id: "p2",
         session_fee: 150,
-        sessions_per_month: 2,
         active: true,
       }),
     ];
-    expect(projectMonthlyRevenue(patients)).toBe(200 * 4 + 150 * 2);
+    expect(projectMonthlyRevenue(patients)).toBe(200 * 4 + 150 * 4);
   });
 
   it("excludes inactive patients", () => {
@@ -150,13 +143,11 @@ describe("projectMonthlyRevenue", () => {
       makePatient({
         id: "p1",
         session_fee: 200,
-        sessions_per_month: 4,
         active: true,
       }),
       makePatient({
         id: "p2",
         session_fee: 999,
-        sessions_per_month: 4,
         active: false,
       }),
     ];
@@ -166,7 +157,7 @@ describe("projectMonthlyRevenue", () => {
   it("treats null session_fee as 0", () => {
     expect(
       projectMonthlyRevenue([
-        makePatient({ session_fee: null, sessions_per_month: 4 }),
+        makePatient({ session_fee: null }),
       ]),
     ).toBe(0);
   });
@@ -478,27 +469,24 @@ describe("patientRevenueRanking", () => {
         id: "p1",
         name: "Alice",
         session_fee: 100,
-        sessions_per_month: 2,
         active: true,
-      }), // 200
+      }), // 400
       makePatient({
         id: "p2",
         name: "Bob",
         session_fee: 200,
-        sessions_per_month: 4,
         active: true,
       }), //  800
       makePatient({
         id: "p3",
         name: "Carol",
         session_fee: 150,
-        sessions_per_month: 3,
         active: true,
       }), //  450
     ];
     const ranking = patientRevenueRanking(patients);
     expect(ranking.map((r) => r.patient_id)).toEqual(["p2", "p3", "p1"]);
-    expect(ranking.map((r) => r.monthly)).toEqual([800, 450, 200]);
+    expect(ranking.map((r) => r.monthly)).toEqual([800, 600, 400]);
   });
 
   it("excludes inactive patients", () => {
@@ -507,13 +495,11 @@ describe("patientRevenueRanking", () => {
         id: "p1",
         active: true,
         session_fee: 100,
-        sessions_per_month: 4,
       }),
       makePatient({
         id: "p2",
         active: false,
         session_fee: 999,
-        sessions_per_month: 4,
       }),
     ];
     const ranking = patientRevenueRanking(patients);
@@ -531,7 +517,6 @@ describe("patientRevenueRanking", () => {
         id: "p1",
         name: "Alice",
         session_fee: 100,
-        sessions_per_month: 2,
       }),
     ];
     expect(patientRevenueRanking(patients)[0].name).toBe("Alice");
