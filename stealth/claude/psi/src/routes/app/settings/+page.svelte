@@ -293,6 +293,25 @@
 		showTemplateForm = false;
 	}
 
+	let bodyEl = $state<HTMLTextAreaElement | null>(null);
+
+	const TEMPLATE_VARS = [
+		{ label: 'Nome',     token: '{nome}'     },
+		{ label: 'E-mail',   token: '{email}'    },
+		{ label: 'Telefone', token: '{telefone}' },
+	];
+
+	function insertVar(token: string) {
+		if (!bodyEl) { tpl.body += token; return; }
+		const start = bodyEl.selectionStart ?? tpl.body.length;
+		const end   = bodyEl.selectionEnd   ?? tpl.body.length;
+		tpl.body = tpl.body.slice(0, start) + token + tpl.body.slice(end);
+		requestAnimationFrame(() => {
+			bodyEl!.focus();
+			bodyEl!.setSelectionRange(start + token.length, start + token.length);
+		});
+	}
+
 	// ── Expense sort ──────────────────────────────────────
 	type SortMode = 'date_value' | 'value';
 	let sortMode = $state<SortMode>('date_value');
@@ -987,11 +1006,23 @@
 					</div>
 
 					<div class="space-y-1">
-						<label class="block text-sm font-medium text-ink dark:text-bg" for="tpl-body">Conteúdo</label>
+						<div class="flex items-center justify-between gap-2">
+							<label class="text-sm font-medium text-ink dark:text-bg" for="tpl-body">Conteúdo</label>
+							<div class="flex flex-wrap gap-1">
+								{#each TEMPLATE_VARS as v}
+									<button
+										type="button"
+										onclick={() => insertVar(v.token)}
+										class="rounded-full border border-primary-100/40 px-2.5 py-0.5 font-mono text-xs text-ink-muted transition-colors hover:border-primary hover:bg-primary-50 hover:text-primary dark:border-white/10 dark:hover:border-primary dark:hover:bg-primary/10 dark:hover:text-primary"
+									>{v.token}</button>
+								{/each}
+							</div>
+						</div>
 						<textarea
 							id="tpl-body"
 							name="body"
 							bind:value={tpl.body}
+							bind:this={bodyEl}
 							rows={10}
 							class="w-full rounded-lg border border-primary-100/40 bg-bg px-3 py-2 text-sm text-ink dark:border-white/10 dark:bg-ink dark:text-bg"
 							placeholder="Escreva o modelo aqui..."
