@@ -152,7 +152,9 @@
 
 	const frequencyLabel: Record<string, string> = {
 		weekly: 'Semanal',
-		biweekly: 'Quinzenal'
+		biweekly: 'Quinzenal',
+		monthly: 'Mensal',
+		detached: 'Avulso'
 	};
 
 	const paidSessions = $derived(data.sessions.filter((s) => s.paid).length);
