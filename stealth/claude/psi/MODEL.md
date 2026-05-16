@@ -1,6 +1,6 @@
 # Psi — Database Model (Supabase PostgreSQL)
 
-**Version:** 1.3 (May 2026)
+**Version:** 1.4 (May 2026)
 **Last updated:** 2026-05-16
 **Stack:** PostgreSQL 17 (Supabase) · pgcrypto · uuid-ossp · Supabase Auth · Row Level Security
 
@@ -101,7 +101,7 @@ graph TD
 | `phone`                          | `TEXT`        |                              |       |
 | `address`                        | `TEXT`        |                              |       |
 | `avatar_url`                     | `TEXT`        |                              |       |
-| `default_session_fee`            | `NUMERIC`     | DEFAULT 250                  |       |
+| `default_session_fee`            | `NUMERIC(15,2)` | DEFAULT 250                |       |
 | `google_refresh_token_encrypted` | `BYTEA`       |                              | LGPD  |
 | `google_calendar_id`             | `TEXT`        |                              |       |
 | `created_at`                     | `TIMESTAMPTZ` | DEFAULT now()                |       |
@@ -132,7 +132,7 @@ graph TD
 | `birth_date`                    | `DATE`        |                                |                |
 | `relatives`                     | `JSONB`       | DEFAULT `'[]'`                 | Legacy; prefer `patient_relatives` |
 | `invoice_data`                  | `JSONB`       | DEFAULT `'{}'`                 |                |
-| `session_fee`                   | `NUMERIC`     | CHECK >= 0                     |                |
+| `session_fee`                   | `NUMERIC(15,2)` | CHECK >= 0                   |                |
 | `frequency`                     | `TEXT`        |                                |                |
 | `notes_encrypted`               | `BYTEA`       |                                | LGPD           |
 | `active`                        | `BOOLEAN`     | DEFAULT true                   |                |
@@ -150,7 +150,7 @@ graph TD
 | `patient_id`              | `UUID`           | NOT NULL → patients                                    |
 | `scheduled_at`            | `TIMESTAMPTZ`    | NOT NULL                                               |
 | `duration_minutes`        | `INTEGER`        | DEFAULT 50, CHECK > 0                                  |
-| `fee`                     | `NUMERIC`        | CHECK >= 0                                             |
+| `fee`                     | `NUMERIC(15,2)`  | CHECK >= 0                                             |
 | `status`                  | `session_status` | DEFAULT `'scheduled'`                                  |
 | `notes_encrypted`         | `BYTEA`          |                                                        |
 | `google_calendar_event_id`| `TEXT`           | UNIQUE                                                 |
@@ -171,7 +171,7 @@ graph TD
 | `start_time`       | `TIME`               | NOT NULL              |                   |
 | `duration_minutes` | `INTEGER`            | DEFAULT 50, CHECK > 0 |                   |
 | `frequency`        | `schedule_frequency` | DEFAULT `'weekly'`    |                   |
-| `fee`              | `NUMERIC`            |                       |                   |
+| `fee`              | `NUMERIC(15,2)`      |                       |                   |
 | `active`           | `BOOLEAN`            | DEFAULT true          | Soft-delete       |
 | `created_at`       | `TIMESTAMPTZ`        | DEFAULT now()         |                   |
 
@@ -184,7 +184,7 @@ graph TD
 | `id`          | `UUID`              | PK                    |                                           |
 | `clinic_id`   | `UUID`              | NOT NULL → clinics    |                                           |
 | `description` | `TEXT`              | NOT NULL              |                                           |
-| `amount`      | `NUMERIC`           | NOT NULL, DEFAULT 0   |                                           |
+| `amount`      | `NUMERIC(15,2)`     | NOT NULL, DEFAULT 0   |                                           |
 | `frequency`   | `expense_frequency` | DEFAULT `'monthly'`   |                                           |
 | `due_day`     | `SMALLINT`          | CHECK 1–28            | Day of month; used for monthly/quarterly  |
 | `due_date`    | `DATE`              |                       | Exact date; used for `one_time`           |
@@ -205,7 +205,7 @@ graph TD
 | `patient_id`  | `UUID`               | → patients            |
 | `session_id`  | `UUID`               | → sessions            |
 | `type`        | `finance_entry_type` | NOT NULL              |
-| `amount`      | `NUMERIC`            | NOT NULL, CHECK >= 0  |
+| `amount`      | `NUMERIC(15,2)`      | NOT NULL, CHECK >= 0  |
 | `description` | `TEXT`               |                       |
 | `occurred_at` | `DATE`               | NOT NULL              |
 | `created_at`  | `TIMESTAMPTZ`        | DEFAULT now()         |
@@ -223,7 +223,7 @@ graph TD
 | `input_tokens`  | `INTEGER`      | DEFAULT 0             |                                       |
 | `output_tokens` | `INTEGER`      | DEFAULT 0             |                                       |
 | `characters`    | `INTEGER`      | DEFAULT 0             | TTS character count                   |
-| `cost_usd`      | `NUMERIC`      | DEFAULT 0             |                                       |
+| `cost_usd`      | `NUMERIC(12,6)` | DEFAULT 0            | Sub-cent USD micro-cost precision     |
 | `duration_ms`   | `INTEGER`      |                       |                                       |
 | `status`        | `TEXT`         | DEFAULT `'success'`   |                                       |
 | `error_message` | `TEXT`         |                       |                                       |
@@ -320,7 +320,32 @@ Pre-seeded with 9 fixed national holidays (year = NULL → repeats annually).
 
 ---
 
-## 5. Helper Functions (SECURITY DEFINER)
+## 5. Monetary Fields Convention
+
+All BRL monetary amounts are stored as **`NUMERIC(15,2)`** — real currency units, not cents.
+
+| Column | Table | Max storable value |
+|---|---|---|
+| `session_fee` | `patients` | 9,999,999,999,999.99 |
+| `fee` | `sessions` | 9,999,999,999,999.99 |
+| `fee` | `schedules` | 9,999,999,999,999.99 |
+| `amount` | `expenses` | 9,999,999,999,999.99 |
+| `amount` | `finance_entries` | 9,999,999,999,999.99 |
+| `default_session_fee` | `therapists` | 9,999,999,999,999.99 |
+
+**`ai_usage_logs.cost_usd`** is deliberately `NUMERIC(12,6)` to preserve sub-cent USD precision for AI call costing.
+
+### Rules for working with monetary values
+
+1. **Always store in real units.** A session fee of R$ 250,00 is stored as `250.00`, never `25000`.
+2. **Never divide or multiply by 100** at any layer — there is no cents encoding.
+3. **Format for display** using `formatBRL(value)` (with `R$` symbol) or `formatBRLDecimal(value)` (CSV export, no symbol). Both live in `src/lib/utils/format.ts`.
+4. **Validate with Zod** as `z.coerce.number().nonnegative()` — accepts decimal string input from HTML forms.
+5. **Floating-point proration** — `expensesForPeriod()` uses `Math.round(x * 100) / 100` to eliminate drift when prorating quarterly/annual amounts. This is a calculation guard, not a cents conversion.
+
+---
+
+## 6. Helper Functions (SECURITY DEFINER)
 
 | Function             | Returns   | Purpose                                              |
 | -------------------- | --------- | ---------------------------------------------------- |
@@ -330,7 +355,7 @@ Pre-seeded with 9 fixed national holidays (year = NULL → repeats annually).
 
 ---
 
-## 6. Row Level Security
+## 7. Row Level Security
 
 All domain tables have RLS enabled. General pattern:
 
@@ -346,7 +371,7 @@ Exceptions:
 
 ---
 
-## 7. LGPD Encryption
+## 8. LGPD Encryption
 
 Fields stored as `BYTEA` via `pgp_sym_encrypt` with the `ENCRYPTION_KEY` Vault secret:
 
@@ -358,7 +383,7 @@ Fields stored as `BYTEA` via `pgp_sym_encrypt` with the `ENCRYPTION_KEY` Vault s
 
 ---
 
-## 8. Migration History
+## 9. Migration History
 
 | Version          | Name                              | Applied via      |
 | ---------------- | --------------------------------- | ---------------- |
@@ -378,3 +403,4 @@ Fields stored as `BYTEA` via `pgp_sym_encrypt` with the `ENCRYPTION_KEY` Vault s
 | `20260516000000` | drop_patients_sessions_per_month  | Supabase CLI     |
 | `20260516132649` | drop_patients_sessions_per_month  | Dashboard        |
 | `20260516145243` | patients_email_not_null           | Dashboard        |
+| `20260516165347` | widen_monetary_columns            | Supabase CLI     |
