@@ -27,10 +27,13 @@ const ClinicSchema = z.object({
 
 const TemplateSchema = z.object({
   title: z.string().min(1),
-  category: z.enum(["anamnese", "evolucao", "relatorio", "consentimento", "outro"]),
+  category: z.enum(["evolucao", "relatorio", "outro"]),
   media: z.enum(["whatsapp", "email", "print"]).default("whatsapp"),
   body: z.string().default(""),
-  patient_id: z.string().uuid().nullable().optional(),
+  patient_id: z.preprocess(
+    (val) => (val === "" ? null : val),
+    z.string().uuid().nullable().optional(),
+  ),
 });
 
 const ExpenseSchema = z.object({

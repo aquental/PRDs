@@ -834,10 +834,8 @@ export type Database = {
       schedule_frequency: "weekly" | "biweekly" | "monthly" | "detached"
       session_status: "scheduled" | "completed" | "cancelled" | "no_show"
       template_category:
-        | "anamnese"
         | "evolucao"
         | "relatorio"
-        | "consentimento"
         | "outro"
       template_media: "whatsapp" | "email" | "print"
     }
@@ -982,10 +980,8 @@ export const Constants = {
       schedule_frequency: ["weekly", "biweekly", "monthly", "detached"],
       session_status: ["scheduled", "completed", "cancelled", "no_show"],
       template_category: [
-        "anamnese",
         "evolucao",
         "relatorio",
-        "consentimento",
         "outro",
       ],
       template_media: ["whatsapp", "email", "print"],

@@ -106,7 +106,8 @@ export const load: PageServerLoad = async ({ locals, params, parent }) => {
       .from("templates")
       .select("id, title, category, media, body, patient_id")
       .eq("therapist_id", therapist.id)
-      .eq("is_active", true),
+      .eq("is_active", true)
+      .or(`patient_id.is.null,patient_id.eq.${patient.id}`),
     getServiceSwitches(),
   ]);
 

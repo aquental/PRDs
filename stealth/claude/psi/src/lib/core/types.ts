@@ -101,14 +101,12 @@ export interface Expense {
   updated_at: string;
 }
 
-export type TemplateCategory = "anamnese" | "evolucao" | "relatorio" | "consentimento" | "outro";
+export type TemplateCategory = "evolucao" | "relatorio" | "outro";
 export type TemplateMedia = "whatsapp" | "email" | "print";
 
 export const CATEGORY_LABELS: Record<TemplateCategory, string> = {
-  anamnese: "Anamnese",
   evolucao: "Evolução",
   relatorio: "Relatório",
-  consentimento: "Consentimento",
   outro: "Outro",
 };
 

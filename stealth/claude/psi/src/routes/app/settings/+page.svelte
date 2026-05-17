@@ -4,7 +4,7 @@
 	import Input from '$lib/ui/Input.svelte';
 	import Button from '$lib/ui/Button.svelte';
 	import { enhance } from '$app/forms';
-	import { PencilSimple, Warning, CircleNotch, Plus, Trash, WarningCircle, CalendarBlank, CurrencyDollar } from 'phosphor-svelte';
+	import { PencilSimple, Warning, CircleNotch, Plus, Trash, WarningCircle, CalendarBlank, CurrencyDollar, Tag } from 'phosphor-svelte';
 	import { PUBLIC_CEP_API_URL } from '$env/static/public';
 
 	interface Clinic {
@@ -41,7 +41,7 @@
 	interface Template {
 		id: string;
 		title: string;
-		category: 'anamnese' | 'evolucao' | 'relatorio' | 'consentimento' | 'outro';
+		category: 'evolucao' | 'relatorio' | 'outro';
 		media: 'whatsapp' | 'email' | 'print';
 		body: string;
 		patient_id: string | null;
@@ -265,10 +265,8 @@
 
 	// ── Modelos ───────────────────────────────────────────
 	const CATEGORY_LABELS: Record<string, string> = {
-		anamnese: 'Anamnese',
 		evolucao: 'Evolução',
 		relatorio: 'Relatório',
-		consentimento: 'Consentimento',
 		outro: 'Outro',
 	};
 
@@ -281,17 +279,17 @@
 	interface TemplateForm {
 		id: string;
 		title: string;
-		category: 'anamnese' | 'evolucao' | 'relatorio' | 'consentimento' | 'outro';
+		category: 'evolucao' | 'relatorio' | 'outro';
 		media: 'whatsapp' | 'email' | 'print';
 		body: string;
 		patient_id: string;
 	}
 
 	let showTemplateForm = $state(false);
-	let tpl = $state<TemplateForm>({ id: '', title: '', category: 'anamnese', media: 'whatsapp', body: '', patient_id: '' });
+	let tpl = $state<TemplateForm>({ id: '', title: '', category: 'evolucao', media: 'whatsapp', body: '', patient_id: '' });
 
 	function startNewTemplate() {
-		tpl = { id: '', title: '', category: 'anamnese', media: 'whatsapp', body: '', patient_id: '' };
+		tpl = { id: '', title: '', category: 'evolucao', media: 'whatsapp', body: '', patient_id: '' };
 		showTemplateForm = true;
 	}
 
@@ -1111,7 +1109,18 @@
 						{#each data.templates as t (t.id)}
 							<li class="flex items-start justify-between gap-4 py-3">
 								<div class="min-w-0">
-									<p class="truncate text-sm font-medium text-ink dark:text-bg">{t.title}</p>
+									<div class="flex items-center gap-1.5">
+										<p class="truncate text-sm font-medium text-ink dark:text-bg">{t.title}</p>
+										{#if t.patient_id}
+											{@const patientName = data.patients.find((p) => p.id === t.patient_id)?.name}
+											{#if patientName}
+												<span title="Modelo exclusivo para {patientName}" class="flex shrink-0 items-center gap-1 text-xs text-ink-muted">
+													<Tag size={14} class="text-primary" />
+													({patientName})
+												</span>
+											{/if}
+										{/if}
+									</div>
 									<p class="mt-0.5 text-xs text-ink-muted">{CATEGORY_LABELS[t.category] ?? t.category}</p>
 								</div>
 								<div class="flex shrink-0 items-center gap-1">
