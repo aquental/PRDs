@@ -6,6 +6,7 @@
 		CalendarBlank,
 		ChartLine,
 		ChatCircleDots,
+		Briefcase,
 		Gear,
 		SignOut
 	} from 'phosphor-svelte';
@@ -69,8 +70,20 @@
 		{/each}
 	</nav>
 
-	<!-- Rodapé: Configurações + Sair -->
+	<!-- Rodapé: Operacional + Configurações + Sair -->
 	<div class="border-t border-primary-100/60 px-3 py-3 dark:border-white/5">
+		<a
+			href="/app/operations"
+			class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors {page.url.pathname.startsWith('/app/operations')
+				? 'bg-primary-50 font-medium text-primary dark:bg-primary-900/40 dark:text-primary-200'
+				: 'text-ink-muted hover:bg-primary-50/60 hover:text-ink dark:hover:bg-white/5 dark:hover:text-bg'}"
+			data-testid="nav-operations"
+			aria-current={page.url.pathname.startsWith('/app/operations') ? 'page' : undefined}
+		>
+			<Briefcase size={17} weight={page.url.pathname.startsWith('/app/operations') ? 'fill' : 'regular'} />
+			Operacional
+		</a>
+
 		<a
 			href="/app/settings"
 			class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors {page.url.pathname.startsWith('/app/settings')
