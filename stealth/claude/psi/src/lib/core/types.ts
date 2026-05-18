@@ -4,6 +4,9 @@
  */
 
 export type SessionStatus = "scheduled" | "completed" | "cancelled" | "no_show";
+export type AttendanceStatus = "presente" | "faltou";
+export type AppointmentLogAction = "created" | "updated" | "cleared";
+export type AppointmentLogSource = "ui" | "bulk_action" | "voice";
 export type SessionFrequency = "weekly" | "biweekly" | "monthly" | "detached";
 export type FinanceEntryType = "revenue" | "expense";
 export type AICallType = "llm_chat" | "tts_synthesis" | "stt_transcription";
@@ -70,8 +73,22 @@ export interface Session {
   frequency: SessionFrequency;
   paid: boolean;
   paid_at?: string | null;
+  attendance_status?: AttendanceStatus | null;
+  attendance_updated_at?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface AppointmentLog {
+  id: string;
+  session_id: string;
+  clinic_id: string;
+  actor_therapist_id: string;
+  action: AppointmentLogAction;
+  previous_value: AttendanceStatus | null;
+  new_value: AttendanceStatus | null;
+  source: AppointmentLogSource;
+  created_at: string;
 }
 
 export interface FinanceEntry {

@@ -14,6 +14,64 @@ export type Database = {
   };
   public: {
     Tables: {
+      appointment_log: {
+        Row: {
+          action: Database["public"]["Enums"]["appointment_log_action"];
+          actor_therapist_id: string;
+          clinic_id: string;
+          created_at: string;
+          id: string;
+          new_value: Database["public"]["Enums"]["attendance_status"] | null;
+          previous_value: Database["public"]["Enums"]["attendance_status"] | null;
+          session_id: string;
+          source: Database["public"]["Enums"]["appointment_log_source"];
+        };
+        Insert: {
+          action: Database["public"]["Enums"]["appointment_log_action"];
+          actor_therapist_id: string;
+          clinic_id: string;
+          created_at?: string;
+          id?: string;
+          new_value?: Database["public"]["Enums"]["attendance_status"] | null;
+          previous_value?: Database["public"]["Enums"]["attendance_status"] | null;
+          session_id: string;
+          source?: Database["public"]["Enums"]["appointment_log_source"];
+        };
+        Update: {
+          action?: Database["public"]["Enums"]["appointment_log_action"];
+          actor_therapist_id?: string;
+          clinic_id?: string;
+          created_at?: string;
+          id?: string;
+          new_value?: Database["public"]["Enums"]["attendance_status"] | null;
+          previous_value?: Database["public"]["Enums"]["attendance_status"] | null;
+          session_id?: string;
+          source?: Database["public"]["Enums"]["appointment_log_source"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "appointment_log_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "appointment_log_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "appointment_log_actor_therapist_id_fkey";
+            columns: ["actor_therapist_id"];
+            isOneToOne: false;
+            referencedRelation: "therapists";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       admins: {
         Row: {
           created_at: string;
@@ -718,6 +776,8 @@ export type Database = {
       };
       sessions: {
         Row: {
+          attendance_status: Database["public"]["Enums"]["attendance_status"] | null;
+          attendance_updated_at: string | null;
           cancelled_at: string | null;
           clinic_id: string;
           created_at: string;
@@ -734,6 +794,8 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          attendance_status?: Database["public"]["Enums"]["attendance_status"] | null;
+          attendance_updated_at?: string | null;
           cancelled_at?: string | null;
           clinic_id: string;
           created_at?: string;
@@ -750,6 +812,8 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          attendance_status?: Database["public"]["Enums"]["attendance_status"] | null;
+          attendance_updated_at?: string | null;
           cancelled_at?: string | null;
           clinic_id?: string;
           created_at?: string;
@@ -919,6 +983,9 @@ export type Database = {
     };
     Enums: {
       ai_call_type: "llm_chat" | "tts_synthesis" | "stt_transcription";
+      appointment_log_action: "created" | "updated" | "cleared";
+      appointment_log_source: "ui" | "bulk_action" | "voice";
+      attendance_status: "presente" | "faltou";
       chat_message_role: "user" | "assistant" | "system" | "tool";
       expense_frequency:
         | "monthly"
