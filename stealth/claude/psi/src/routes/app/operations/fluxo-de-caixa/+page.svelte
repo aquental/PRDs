@@ -68,7 +68,8 @@
 	const expensesByCategory = $derived.by(() => {
 		const map = new Map<string, number>();
 		for (const e of data.expenseEntries) {
-			map.set(e.description, (map.get(e.description) ?? 0) + e.amount);
+			const desc = (e.expenses as { description: string }[] | null)?.[0]?.description ?? 'Despesa';
+			map.set(desc, (map.get(desc) ?? 0) + e.amount);
 		}
 		return [...map.entries()]
 			.sort(([, a], [, b]) => b - a)
@@ -172,7 +173,7 @@
 			rows.push([
 				e.occurred_at,
 				'Despesa',
-				e.description,
+				(e.expenses as { description: string }[] | null)?.[0]?.description ?? 'Despesa',
 				(e.amount / 100).toFixed(2).replace('.', ','),
 				'Pago',
 			]);

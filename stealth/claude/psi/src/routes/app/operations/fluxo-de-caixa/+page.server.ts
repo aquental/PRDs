@@ -65,7 +65,7 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
     // Expense finance entries in period
     locals.supabase
       .from("finance_entries")
-      .select("id, amount, description, occurred_at")
+      .select("id, amount, occurred_at, expense_id, expenses(description)")
       .eq("therapist_id", therapist.id)
       .eq("type", "expense")
       .gte("occurred_at", periodStart)
