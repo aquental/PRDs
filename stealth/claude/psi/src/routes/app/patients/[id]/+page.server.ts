@@ -188,7 +188,13 @@ export const actions: Actions = {
       .eq("id", params.id)
       .eq("therapist_id", ownership.therapistId);
 
-    if (err) return fail(400, { error: err.message });
+    if (err) {
+      if (err.code === "23505")
+        return fail(409, {
+          error: { cpf: ["CPF já cadastrado nesta clínica"] },
+        });
+      return fail(400, { error: err.message });
+    }
     await invalidateDashboard(ownership.therapistId);
     return { success: true };
   },

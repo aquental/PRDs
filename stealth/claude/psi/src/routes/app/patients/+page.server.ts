@@ -90,7 +90,13 @@ export const actions: Actions = {
       notes: p.notes || null,
     });
 
-    if (error) return fail(400, { error: { _: [error.message] } });
+    if (error) {
+      if (error.code === "23505")
+        return fail(409, {
+          error: { cpf: ["CPF já cadastrado nesta clínica"] },
+        });
+      return fail(400, { error: { _: [error.message] } });
+    }
     await invalidateDashboard(therapist.id);
     return { success: true };
   },
