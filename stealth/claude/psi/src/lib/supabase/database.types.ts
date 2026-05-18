@@ -358,6 +358,45 @@ export type Database = {
           },
         ];
       };
+      holidays: {
+        Row: {
+          city: string | null;
+          created_at: string;
+          day: number;
+          description: string | null;
+          id: string;
+          month: number;
+          name: string;
+          state: string | null;
+          type: string;
+          year: number | null;
+        };
+        Insert: {
+          city?: string | null;
+          created_at?: string;
+          day: number;
+          description?: string | null;
+          id?: string;
+          month: number;
+          name: string;
+          state?: string | null;
+          type: string;
+          year?: number | null;
+        };
+        Update: {
+          city?: string | null;
+          created_at?: string;
+          day?: number;
+          description?: string | null;
+          id?: string;
+          month?: number;
+          name?: string;
+          state?: string | null;
+          type?: string;
+          year?: number | null;
+        };
+        Relationships: [];
+      };
       month_closures: {
         Row: {
           clinic_id: string;
@@ -410,6 +449,20 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "month_closures_closed_by_fkey";
+            columns: ["closed_by"];
+            isOneToOne: false;
+            referencedRelation: "therapists";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "month_closures_reopened_by_fkey";
+            columns: ["reopened_by"];
+            isOneToOne: false;
+            referencedRelation: "therapists";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "month_closures_therapist_id_fkey";
             columns: ["therapist_id"];
             isOneToOne: false;
@@ -417,45 +470,6 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
-      };
-      holidays: {
-        Row: {
-          city: string | null;
-          created_at: string;
-          day: number;
-          description: string | null;
-          id: string;
-          month: number;
-          name: string;
-          state: string | null;
-          type: string;
-          year: number | null;
-        };
-        Insert: {
-          city?: string | null;
-          created_at?: string;
-          day: number;
-          description?: string | null;
-          id?: string;
-          month: number;
-          name: string;
-          state?: string | null;
-          type: string;
-          year?: number | null;
-        };
-        Update: {
-          city?: string | null;
-          created_at?: string;
-          day?: number;
-          description?: string | null;
-          id?: string;
-          month?: number;
-          name?: string;
-          state?: string | null;
-          type?: string;
-          year?: number | null;
-        };
-        Relationships: [];
       };
       patient_addresses: {
         Row: {
@@ -547,14 +561,17 @@ export type Database = {
           cancellation_policy: string;
           cancellation_window_hours: number | null;
           clinic_id: string;
+          cpf: string | null;
           created_at: string;
           email: string;
           frequency: string | null;
           google_calendar_attendee_email: string | null;
           id: string;
           name: string;
+          notes: string | null;
           phone: string | null;
           session_fee: number | null;
+          start_date: string | null;
           therapist_id: string;
           updated_at: string;
         };
@@ -565,14 +582,17 @@ export type Database = {
           cancellation_policy?: string;
           cancellation_window_hours?: number | null;
           clinic_id: string;
+          cpf?: string | null;
           created_at?: string;
           email: string;
           frequency?: string | null;
           google_calendar_attendee_email?: string | null;
           id?: string;
           name: string;
+          notes?: string | null;
           phone?: string | null;
           session_fee?: number | null;
+          start_date?: string | null;
           therapist_id: string;
           updated_at?: string;
         };
@@ -583,14 +603,17 @@ export type Database = {
           cancellation_policy?: string;
           cancellation_window_hours?: number | null;
           clinic_id?: string;
+          cpf?: string | null;
           created_at?: string;
           email?: string;
           frequency?: string | null;
           google_calendar_attendee_email?: string | null;
           id?: string;
           name?: string;
+          notes?: string | null;
           phone?: string | null;
           session_fee?: number | null;
+          start_date?: string | null;
           therapist_id?: string;
           updated_at?: string;
         };

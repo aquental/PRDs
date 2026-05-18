@@ -2,6 +2,7 @@ import { fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 import { z } from "zod";
 import { invalidateDashboard } from "$lib/redis";
+import { normalizeCPF } from "$lib/core/patients";
 
 const PatientSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
@@ -13,6 +14,23 @@ const PatientSchema = z.object({
     .email()
     .optional()
     .or(z.literal("")),
+  cpf: z.preprocess(
+    (val) => (val === "" ? null : val),
+    z
+      .string()
+      .refine((val) => normalizeCPF(val) !== null, "CPF inválido")
+      .nullable()
+      .optional(),
+  ),
+  start_date: z.preprocess(
+    (val) => (val === "" ? null : val),
+    z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida")
+      .nullable()
+      .optional(),
+  ),
+  notes: z.string().optional(),
 });
 
 export const load: PageServerLoad = async ({ locals, parent, url }) => {
@@ -67,6 +85,9 @@ export const actions: Actions = {
       phone: p.phone || null,
       session_fee: p.session_fee ?? null,
       google_calendar_attendee_email: calendarEmail,
+      cpf: p.cpf ? normalizeCPF(p.cpf) : null,
+      start_date: p.start_date ?? null,
+      notes: p.notes || null,
     });
 
     if (error) return fail(400, { error: { _: [error.message] } });

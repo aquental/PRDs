@@ -48,10 +48,10 @@ export interface Patient {
   name: string;
   email: string;
   phone?: string | null;
-  address?: string | null;
-  birth_date?: string | null;
+  cpf?: string | null;
+  start_date?: string | null;
+  notes?: string | null;
   session_fee?: number | null;
-  frequency?: string | null;
   active: boolean;
   google_calendar_attendee_email?: string | null;
   created_at: string;

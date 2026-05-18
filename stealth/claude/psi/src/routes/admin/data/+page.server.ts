@@ -48,10 +48,9 @@ export interface PatientRow {
   name: string;
   email: string | null;
   phone: string | null;
-  address: string | null;
-  birth_date: string | null;
+  cpf: string | null;
+  start_date: string | null;
   session_fee: number | null;
-  frequency: string | null;
   active: boolean;
   created_at: string;
 }
@@ -92,12 +91,6 @@ const EXPENSE_FREQUENCIES = [
   { value: "semestral", label: "Semestral" },
   { value: "annual", label: "Anual" },
   { value: "one_time", label: "Pontual" },
-];
-
-const PATIENT_FREQUENCIES = [
-  { value: "weekly", label: "Semanal" },
-  { value: "biweekly", label: "Quinzenal" },
-  { value: "monthly", label: "Mensal" },
 ];
 
 const BR_STATES = [
@@ -162,7 +155,7 @@ export const load: PageServerLoad = async ({ url }) => {
       admin
         .from("patients")
         .select(
-          "id,name,email,phone,address,birth_date,session_fee,frequency,active,created_at",
+          "id,name,email,phone,cpf,start_date,session_fee,active,created_at",
         )
         .eq("therapist_id", therapistId!)
         .order("name"),
@@ -195,7 +188,6 @@ export const load: PageServerLoad = async ({ url }) => {
     meta: {
       timezones: TIMEZONES,
       expenseFrequencies: EXPENSE_FREQUENCIES,
-      patientFrequencies: PATIENT_FREQUENCIES,
       brStates: BR_STATES,
     },
   };
@@ -356,10 +348,7 @@ export const actions: Actions = {
       name: str(fd, "name"),
       email: str(fd, "email"),
       phone: strOrNull(fd, "phone"),
-      address: strOrNull(fd, "address"),
-      birth_date: strOrNull(fd, "birth_date"),
       session_fee: numOrNull(fd, "session_fee"),
-      frequency: strOrNull(fd, "frequency"),
       active: bool(fd, "active"),
     });
     if (error) return fail(500, { error: error.message });
@@ -381,10 +370,7 @@ export const actions: Actions = {
         name: str(fd, "name"),
         email: str(fd, "email"),
         phone: strOrNull(fd, "phone"),
-        address: strOrNull(fd, "address"),
-        birth_date: strOrNull(fd, "birth_date"),
         session_fee: numOrNull(fd, "session_fee"),
-        frequency: strOrNull(fd, "frequency"),
         active: bool(fd, "active"),
       })
       .eq("id", id);

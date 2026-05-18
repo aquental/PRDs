@@ -160,25 +160,19 @@
 	let patientName           = $state('');
 	let patientEmail          = $state('');
 	let patientPhone          = $state('');
-	let patientAddress        = $state('');
-	let patientBirthDate      = $state('');
 	let patientFee            = $state('');
-	let patientFrequency      = $state('weekly');
 	let patientActive         = $state(true);
 
 	function openCreatePatient() {
 		patientMode = 'create'; patientError = '';
 		patientId = ''; patientName = ''; patientEmail = ''; patientPhone = '';
-		patientAddress = ''; patientBirthDate = ''; patientFee = '';
-		patientFrequency = 'weekly'; patientActive = true;
+		patientFee = ''; patientActive = true;
 		patientDialog.showModal();
 	}
 	function openEditPatient(p: PatientRow) {
 		patientMode = 'edit'; patientError = '';
 		patientId = p.id; patientName = p.name; patientEmail = p.email ?? '';
-		patientPhone = p.phone ?? ''; patientAddress = p.address ?? '';
-		patientBirthDate = p.birth_date ?? ''; patientFee = p.session_fee?.toString() ?? '';
-		patientFrequency = p.frequency ?? 'weekly';
+		patientPhone = p.phone ?? ''; patientFee = p.session_fee?.toString() ?? '';
 		patientActive = p.active;
 		patientDialog.showModal();
 	}
@@ -491,7 +485,6 @@
 									<th class="px-5 py-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Nome</th>
 									<th class="px-5 py-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">E-mail</th>
 									<th class="px-5 py-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Telefone</th>
-									<th class="px-5 py-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Nascimento</th>
 									<th class="px-5 py-3 text-right text-[11px] font-medium uppercase tracking-wide text-ink-muted">Valor sessão</th>
 									<th class="px-5 py-3 text-[11px] font-medium uppercase tracking-wide text-ink-muted">Status</th>
 									<th class="px-4 py-3"></th>
@@ -503,7 +496,6 @@
 										<td class="px-5 py-3 font-medium text-ink dark:text-bg">{p.name}</td>
 										<td class="px-5 py-3 text-ink-muted">{p.email ?? '—'}</td>
 										<td class="px-5 py-3 text-ink-muted">{p.phone ? formatPhone(p.phone) : '—'}</td>
-										<td class="px-5 py-3 text-ink-muted">{fmtDate(p.birth_date)}</td>
 										<td class="px-5 py-3 text-right tabular-nums font-medium">
 											{p.session_fee != null ? formatBRL(p.session_fee) : '—'}
 										</td>
@@ -895,24 +887,8 @@
 					<input id="pat-phone" name="phone" bind:value={patientPhone} class="input w-full" />
 				</div>
 				<div>
-					<label class="label" for="pat-birth">Nascimento</label>
-					<input id="pat-birth" name="birth_date" type="date" bind:value={patientBirthDate} class="input w-full" />
-				</div>
-				<div>
 					<label class="label" for="pat-fee">Valor sessão (R$)</label>
 					<input id="pat-fee" name="session_fee" type="number" step="0.01" min="0" bind:value={patientFee} class="input w-full" />
-				</div>
-				<div>
-					<label class="label" for="pat-freq">Frequência</label>
-					<select id="pat-freq" name="frequency" bind:value={patientFrequency} class="input w-full">
-						{#each data.meta.patientFrequencies as f}
-							<option value={f.value}>{f.label}</option>
-						{/each}
-					</select>
-				</div>
-				<div class="sm:col-span-2">
-					<label class="label" for="pat-addr">Endereço</label>
-					<input id="pat-addr" name="address" bind:value={patientAddress} class="input w-full" />
 				</div>
 				<div class="sm:col-span-2 flex items-center gap-2">
 					<input id="pat-active" name="active" type="checkbox" bind:checked={patientActive}

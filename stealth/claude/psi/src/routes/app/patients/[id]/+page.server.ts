@@ -3,6 +3,7 @@ import type { Actions, PageServerLoad } from "./$types";
 import { z } from "zod";
 import { invalidateDashboard } from "$lib/redis";
 import { getServiceSwitches } from "$lib/server/service-switches";
+import { normalizeCPF } from "$lib/core/patients";
 
 const PatientSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
@@ -15,6 +16,23 @@ const PatientSchema = z.object({
     .optional()
     .or(z.literal("")),
   active: z.coerce.boolean().default(true),
+  cpf: z.preprocess(
+    (val) => (val === "" ? null : val),
+    z
+      .string()
+      .refine((val) => normalizeCPF(val) !== null, "CPF inválido")
+      .nullable()
+      .optional(),
+  ),
+  start_date: z.preprocess(
+    (val) => (val === "" ? null : val),
+    z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida")
+      .nullable()
+      .optional(),
+  ),
+  notes: z.string().optional(),
 });
 
 const AddressSchema = z.object({
@@ -163,6 +181,9 @@ export const actions: Actions = {
         session_fee: p.session_fee ?? null,
         google_calendar_attendee_email: calendarEmail,
         active: p.active,
+        cpf: p.cpf ? normalizeCPF(p.cpf) : null,
+        start_date: p.start_date ?? null,
+        notes: p.notes || null,
       })
       .eq("id", params.id)
       .eq("therapist_id", ownership.therapistId);
