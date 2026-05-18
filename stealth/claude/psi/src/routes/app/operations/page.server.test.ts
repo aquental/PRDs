@@ -48,6 +48,7 @@ interface LocalsOptions {
   upsertError?: { message: string } | null;
   therapistCount?: number;
   minTherapists?: number;
+  financeInsertCapture?: (payload: unknown) => void;
 }
 
 /**
@@ -68,6 +69,7 @@ function makeLocals({
   upsertError = null,
   therapistCount = 1,
   minTherapists = 2,
+  financeInsertCapture,
 }: LocalsOptions = {}) {
   const callCounts: Record<string, number> = {};
 
@@ -131,7 +133,10 @@ function makeLocals({
     // ── finance_entries ───────────────────────────────────────
     if (table === "finance_entries") {
       return {
-        insert: vi.fn().mockResolvedValue({ error: financeInsertError }),
+        insert: vi.fn().mockImplementation((payload: unknown) => {
+          financeInsertCapture?.(payload);
+          return Promise.resolve({ error: financeInsertError });
+        }),
       };
     }
 
@@ -167,12 +172,10 @@ function makeLocals({
       return {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
-        single: vi
-          .fn()
-          .mockResolvedValue({
-            data: { min_therapists: minTherapists },
-            error: null,
-          }),
+        single: vi.fn().mockResolvedValue({
+          data: { min_therapists: minTherapists },
+          error: null,
+        }),
       };
     }
 
@@ -288,7 +291,6 @@ describe("registerSession", () => {
 describe("markExpensePaid", () => {
   const validData = {
     expense_id: EXPENSE_UUID,
-    description: "Internet",
     amount: "120",
     today: "2026-05-17",
   };
@@ -299,6 +301,23 @@ describe("markExpensePaid", () => {
       locals: makeLocals(),
     } as unknown as Parameters<typeof actions.markExpensePaid>[0]);
     expect(result).toEqual({ success: true, action: "markExpensePaid" });
+  });
+
+  it("inserts finance entry with clinic_id and expense_id, without description", async () => {
+    let captured: Record<string, unknown> | null = null;
+    const result = await actions.markExpensePaid({
+      request: makeRequest(validData),
+      locals: makeLocals({
+        financeInsertCapture: (p) => {
+          captured = p as Record<string, unknown>;
+        },
+      }),
+    } as unknown as Parameters<typeof actions.markExpensePaid>[0]);
+    expect(result).toEqual({ success: true, action: "markExpensePaid" });
+    expect(captured).not.toBeNull();
+    expect(captured!.clinic_id).toBe(THERAPIST.clinic_id);
+    expect(captured!.expense_id).toBe(EXPENSE_UUID);
+    expect(captured).not.toHaveProperty("description");
   });
 
   it("401 when no authenticated user", async () => {

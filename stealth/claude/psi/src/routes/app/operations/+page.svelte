@@ -116,8 +116,8 @@
 		),
 	);
 
-	const paidDescriptions = $derived(
-		new Set(data.monthExpenseEntries.map((e) => e.description)),
+	const paidExpenseIds = $derived(
+		new Set(data.monthExpenseEntries.map((e) => e.expense_id).filter((id): id is string => id !== null)),
 	);
 
 	// ── Month cashflow ─────────────────────────────────────────
@@ -175,7 +175,7 @@
 		data.monthSessions.filter((s) => s.status === 'scheduled').length,
 	);
 	const unpaidOverdueCount = $derived(
-		overdueExpenses.filter((e) => !paidDescriptions.has(e.description)).length,
+		overdueExpenses.filter((e) => !paidExpenseIds.has(e.id)).length,
 	);
 </script>
 
@@ -293,7 +293,7 @@
 			overdue={overdueExpenses}
 			dueToday={dueTodayExpenses}
 			dueThisWeek={dueThisWeekExpenses}
-			{paidDescriptions}
+			paidExpenseIds={paidExpenseIds}
 			today={data.today}
 		/>
 	</div>

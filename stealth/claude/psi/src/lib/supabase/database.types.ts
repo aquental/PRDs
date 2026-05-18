@@ -311,6 +311,7 @@ export type Database = {
           amount: number;
           clinic_id: string;
           created_at: string;
+          expense_id: string | null;
           id: string;
           occurred_at: string;
           patient_id: string | null;
@@ -321,6 +322,7 @@ export type Database = {
           amount: number;
           clinic_id: string;
           created_at?: string;
+          expense_id?: string | null;
           id?: string;
           occurred_at: string;
           patient_id?: string | null;
@@ -331,6 +333,7 @@ export type Database = {
           amount?: number;
           clinic_id?: string;
           created_at?: string;
+          expense_id?: string | null;
           id?: string;
           occurred_at?: string;
           patient_id?: string | null;

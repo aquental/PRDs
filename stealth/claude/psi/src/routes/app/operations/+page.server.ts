@@ -11,7 +11,6 @@ const RegisterSessionSchema = z.object({
 
 const MarkExpensePaidSchema = z.object({
   expense_id: z.string().uuid(),
-  description: z.string().min(1),
   amount: z.coerce.number().nonnegative(),
   today: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
@@ -31,7 +30,9 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
   // Fetch operational fields not included in the layout query
   const { data: clinicOp } = await locals.supabase
     .from("clinics")
-    .select("cancellation_window_hours, repasse_fixo, repasse_percentual, min_therapists")
+    .select(
+      "cancellation_window_hours, repasse_fixo, repasse_percentual, min_therapists",
+    )
     .eq("id", therapist.clinic_id)
     .single();
 
@@ -101,7 +102,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
     // Expense finance entries this month (to detect which bills are paid)
     locals.supabase
       .from("finance_entries")
-      .select("id, amount, description, occurred_at")
+      .select("id, expense_id, amount, occurred_at")
       .eq("therapist_id", therapist.id)
       .eq("type", "expense")
       .gte("occurred_at", `${monthYear}-01`)
@@ -213,7 +214,7 @@ export const actions: Actions = {
     if (!parsed.success)
       return fail(400, { error: parsed.error.flatten().fieldErrors });
 
-    const { expense_id, description, amount, today } = parsed.data;
+    const { expense_id, amount, today } = parsed.data;
 
     // Verify expense belongs to this clinic
     const { data: expense } = await locals.supabase
@@ -227,10 +228,11 @@ export const actions: Actions = {
     const { error: err } = await locals.supabase
       .from("finance_entries")
       .insert({
+        clinic_id: therapist.clinic_id,
         therapist_id: therapist.id,
         type: "expense",
         amount,
-        description,
+        expense_id,
         occurred_at: today,
       });
 

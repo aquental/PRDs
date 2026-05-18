@@ -30,11 +30,11 @@
 		overdue: Expense[];
 		dueToday: Expense[];
 		dueThisWeek: Expense[];
-		paidDescriptions: Set<string>;
+		paidExpenseIds: Set<string>;
 		today: string;
 	}
 
-	let { overdue, dueToday, dueThisWeek, paidDescriptions, today }: Props = $props();
+	let { overdue, dueToday, dueThisWeek, paidExpenseIds, today }: Props = $props();
 
 	let submitting = $state<string | null>(null);
 
@@ -57,7 +57,7 @@
 					</p>
 					<ul class="space-y-1.5" aria-label="Contas atrasadas">
 						{#each overdue as e (e.id)}
-							{@const paid = paidDescriptions.has(e.description)}
+							{@const paid = paidExpenseIds.has(e.id)}
 							<li class="flex min-h-[44px] items-center gap-2 rounded-lg border border-red-200/60 bg-red-50/60 px-3 py-2 dark:border-red-900/30 dark:bg-red-900/10">
 								<div class="min-w-0 flex-1">
 									<span class="text-sm text-red-900 dark:text-red-300">{e.description}</span>
@@ -86,7 +86,6 @@
 										}}
 									>
 										<input type="hidden" name="expense_id" value={e.id} />
-										<input type="hidden" name="description" value={e.description} />
 										<input type="hidden" name="amount" value={e.amount} />
 										<input type="hidden" name="today" value={today} />
 										<button
@@ -111,7 +110,7 @@
 					</p>
 					<ul class="space-y-1.5" aria-label="Contas que vencem hoje">
 						{#each dueToday as e (e.id)}
-							{@const paid = paidDescriptions.has(e.description)}
+							{@const paid = paidExpenseIds.has(e.id)}
 							<li class="flex min-h-[44px] items-center gap-2 rounded-lg border border-amber-200/60 bg-amber-50/60 px-3 py-2 dark:border-amber-900/30 dark:bg-amber-900/10">
 								<div class="min-w-0 flex-1">
 									<span class="text-sm text-amber-900 dark:text-amber-300">{e.description}</span>
@@ -140,7 +139,6 @@
 										}}
 									>
 										<input type="hidden" name="expense_id" value={e.id} />
-										<input type="hidden" name="description" value={e.description} />
 										<input type="hidden" name="amount" value={e.amount} />
 										<input type="hidden" name="today" value={today} />
 										<button
