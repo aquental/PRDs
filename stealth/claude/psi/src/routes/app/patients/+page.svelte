@@ -28,9 +28,20 @@
 	let name = $state('');
 	let email = $state('');
 	let phone = $state('');
+	let cpf = $state('');
+	let start_date = $state('');
+	let notes = $state('');
 	let session_fee = $state(untrack(() => data.defaultFee.toString()));
 
 	let canSubmit = $derived(name.trim().length > 0 && email.trim().length > 0);
+
+	function maskCPF(value: string): string {
+		const d = value.replace(/\D/g, '').slice(0, 11);
+		if (d.length <= 3) return d;
+		if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
+		if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+		return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+	}
 </script>
 
 <div class="space-y-8">
@@ -56,7 +67,7 @@
 						await update();
 						if (!form?.error) {
 							showForm = false;
-							name = email = phone = '';
+							name = email = phone = cpf = start_date = notes = '';
 							session_fee = data.defaultFee.toString();
 						}
 					};
@@ -66,6 +77,20 @@
 				<Input label="Nome" name="name" bind:value={name} required data-testid="inp-name" />
 				<Input label="E-mail" name="email" type="email" bind:value={email} required data-testid="inp-email" />
 				<Input label="Telefone" name="phone" bind:value={phone} data-testid="inp-phone" />
+				<div>
+					<label for="inp-cpf" class="label">CPF</label>
+					<input
+						id="inp-cpf"
+						name="cpf"
+						value={cpf}
+						placeholder="000.000.000-00"
+						maxlength={14}
+						oninput={(e) => { cpf = maskCPF((e.currentTarget as HTMLInputElement).value); }}
+						class="input w-full"
+						data-testid="inp-cpf"
+					/>
+				</div>
+				<Input label="Início do atendimento" name="start_date" type="date" bind:value={start_date} />
 				<Input
 					label="Valor da consulta (R$)"
 					name="session_fee"
@@ -79,6 +104,17 @@
 					type="email"
 					data-testid="inp-gcal-email"
 				/>
+				<div class="sm:col-span-2">
+					<label for="inp-notes" class="label">Observações</label>
+					<textarea
+						id="inp-notes"
+						name="notes"
+						bind:value={notes}
+						rows={3}
+						class="input w-full resize-y"
+						data-testid="inp-notes"
+					></textarea>
+				</div>
 
 				<div class="flex justify-end gap-2 sm:col-span-2">
 					<Button variant="ghost" onclick={() => (showForm = false)}>Cancelar</Button>

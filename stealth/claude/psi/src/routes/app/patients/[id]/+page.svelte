@@ -55,6 +55,9 @@
 				name: string;
 				email: string | null;
 				phone: string | null;
+				cpf: string | null;
+				start_date: string | null;
+				notes: string | null;
 				session_fee: number | null;
 				active: boolean;
 				google_calendar_attendee_email: string | null;
@@ -76,9 +79,31 @@
 	let name = $state(untrack(() => data.patient.name));
 	let email = $state(untrack(() => data.patient.email ?? ''));
 	let phone = $state(untrack(() => data.patient.phone ?? ''));
+	let cpf = $state(untrack(() => displayCPF(data.patient.cpf)));
+	let start_date = $state(untrack(() => data.patient.start_date ?? ''));
+	let notes = $state(untrack(() => data.patient.notes ?? ''));
 	let session_fee = $state(untrack(() => data.patient.session_fee?.toString() ?? ''));
 	let gcal_email = $state(untrack(() => data.patient.google_calendar_attendee_email ?? ''));
 	let active = $state(untrack(() => data.patient.active));
+
+	function maskCPF(value: string): string {
+		const d = value.replace(/\D/g, '').slice(0, 11);
+		if (d.length <= 3) return d;
+		if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
+		if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+		return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+	}
+
+	function displayCPF(raw: string | null | undefined): string {
+		if (!raw || raw.length !== 11) return '';
+		return `${raw.slice(0, 3)}.${raw.slice(3, 6)}.${raw.slice(6, 9)}-${raw.slice(9)}`;
+	}
+
+	function formatDate(dateStr: string | null | undefined): string {
+		if (!dateStr) return '—';
+		const [y, m, d] = dateStr.split('-').map(Number);
+		return new Date(y, m - 1, d).toLocaleDateString('pt-BR');
+	}
 
 	// ── Tabs ──────────────────────────────────────────────
 	type Tab = 'address' | 'relatives' | 'cancelamento';
@@ -252,8 +277,31 @@
 				<Input label="Nome" name="name" bind:value={name} required />
 				<Input label="E-mail" name="email" type="email" bind:value={email} />
 				<Input label="Telefone" name="phone" bind:value={phone} />
+				<div>
+					<label for="edit-cpf" class="label">CPF</label>
+					<input
+						id="edit-cpf"
+						name="cpf"
+						value={cpf}
+						placeholder="000.000.000-00"
+						maxlength={14}
+						oninput={(e) => { cpf = maskCPF((e.currentTarget as HTMLInputElement).value); }}
+						class="input w-full"
+					/>
+				</div>
+				<Input label="Início do atendimento" name="start_date" type="date" bind:value={start_date} />
 				<Input label="Valor da consulta (R$)" name="session_fee" type="number" bind:value={session_fee} />
 				<Input label="E-mail (Google Calendar)" name="google_calendar_attendee_email" type="email" bind:value={gcal_email} />
+				<div class="sm:col-span-2">
+					<label for="edit-notes" class="label">Observações</label>
+					<textarea
+						id="edit-notes"
+						name="notes"
+						bind:value={notes}
+						rows={3}
+						class="input w-full resize-y"
+					></textarea>
+				</div>
 				<label class="flex items-center gap-2 text-sm sm:col-span-2">
 					<input type="checkbox" name="active" bind:checked={active} value="true" class="accent-primary" />
 					Paciente ativo
@@ -282,6 +330,18 @@
 						{data.patient.phone ? formatPhone(data.patient.phone) : '—'}
 					</dd>
 				</div>
+				{#if data.patient.cpf}
+					<div>
+						<dt class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">CPF</dt>
+						<dd class="mt-0.5 font-medium tabular-nums text-ink dark:text-bg">{displayCPF(data.patient.cpf)}</dd>
+					</div>
+				{/if}
+				{#if data.patient.start_date}
+					<div>
+						<dt class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Início do atendimento</dt>
+						<dd class="mt-0.5 font-medium text-ink dark:text-bg">{formatDate(data.patient.start_date)}</dd>
+					</div>
+				{/if}
 				<div>
 					<dt class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Endereço</dt>
 					<dd class="mt-0.5 font-medium text-ink dark:text-bg">{formattedAddress || '—'}</dd>
@@ -292,6 +352,12 @@
 						{data.relatives.length > 0 ? `${data.relatives.length} cadastrado(s)` : '—'}
 					</dd>
 				</div>
+				{#if data.patient.notes}
+					<div>
+						<dt class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Observações</dt>
+						<dd class="mt-0.5 whitespace-pre-wrap text-ink-muted">{data.patient.notes}</dd>
+					</div>
+				{/if}
 			</dl>
 		</Card>
 
