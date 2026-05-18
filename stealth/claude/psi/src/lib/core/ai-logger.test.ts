@@ -28,7 +28,7 @@ describe("priceFromUsage", () => {
   it("calculates LLM cost for gpt-4o-mini", () => {
     // 1 000 input tokens × 0.00015 + 1 000 output tokens × 0.0006
     const cost = priceFromUsage({
-      clinic_id: null,
+      clinic_id: "clinic-1",
       therapist_id: null,
       call_type: "llm_chat",
       provider: "openai",
@@ -42,7 +42,7 @@ describe("priceFromUsage", () => {
   it("calculates LLM cost for gpt-4o", () => {
     // 1 000 input tokens × 0.0025 + 500 output tokens × 0.01
     const cost = priceFromUsage({
-      clinic_id: null,
+      clinic_id: "clinic-1",
       therapist_id: null,
       call_type: "llm_chat",
       provider: "openai",
@@ -55,7 +55,7 @@ describe("priceFromUsage", () => {
 
   it("returns 0 for LLM call with unknown model", () => {
     const cost = priceFromUsage({
-      clinic_id: null,
+      clinic_id: "clinic-1",
       therapist_id: null,
       call_type: "llm_chat",
       provider: "custom",
@@ -66,12 +66,13 @@ describe("priceFromUsage", () => {
     expect(cost).toBe(0);
   });
 
-  it("returns 0 for LLM call without a model", () => {
+  it("returns 0 for LLM call with empty model string", () => {
     const cost = priceFromUsage({
-      clinic_id: null,
+      clinic_id: "clinic-1",
       therapist_id: null,
       call_type: "llm_chat",
       provider: "openai",
+      model: "",
     });
     expect(cost).toBe(0);
   });
@@ -79,7 +80,7 @@ describe("priceFromUsage", () => {
   it("calculates TTS cost for eleven_turbo_v2_5", () => {
     // 1 000 chars × 0.00003
     const cost = priceFromUsage({
-      clinic_id: null,
+      clinic_id: "clinic-1",
       therapist_id: null,
       call_type: "tts_synthesis",
       provider: "elevenlabs",
@@ -92,7 +93,7 @@ describe("priceFromUsage", () => {
   it("calculates TTS cost for eleven_multilingual_v2", () => {
     // 500 chars × 0.00005
     const cost = priceFromUsage({
-      clinic_id: null,
+      clinic_id: "clinic-1",
       therapist_id: null,
       call_type: "tts_synthesis",
       provider: "elevenlabs",
@@ -104,7 +105,7 @@ describe("priceFromUsage", () => {
 
   it("returns 0 for TTS with unknown model", () => {
     const cost = priceFromUsage({
-      clinic_id: null,
+      clinic_id: "clinic-1",
       therapist_id: null,
       call_type: "tts_synthesis",
       provider: "elevenlabs",
@@ -116,7 +117,7 @@ describe("priceFromUsage", () => {
 
   it("returns 0 for stt_transcription (no pricing defined)", () => {
     const cost = priceFromUsage({
-      clinic_id: null,
+      clinic_id: "clinic-1",
       therapist_id: null,
       call_type: "stt_transcription",
       provider: "openai",
@@ -128,7 +129,7 @@ describe("priceFromUsage", () => {
 
   it("treats undefined tokens/characters as 0", () => {
     const cost = priceFromUsage({
-      clinic_id: null,
+      clinic_id: "clinic-1",
       therapist_id: null,
       call_type: "llm_chat",
       provider: "openai",

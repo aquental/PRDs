@@ -28,7 +28,7 @@ export interface ChatCompletionResult {
 
 export async function chatComplete(
   params: ChatCompletionParams,
-  ctx: { clinic_id: string | null; therapist_id: string | null },
+  ctx: { clinic_id: string; therapist_id: string | null },
 ): Promise<ChatCompletionResult> {
   const cfg = serverConfig();
   const t0 = Date.now();

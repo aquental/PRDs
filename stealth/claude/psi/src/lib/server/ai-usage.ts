@@ -17,7 +17,7 @@ export async function persistAIUsage(input: AIUsageInput): Promise<void> {
     therapist_id: input.therapist_id,
     call_type: input.call_type,
     provider: input.provider,
-    model: input.model ?? null,
+    model: input.model,
     input_tokens: input.input_tokens ?? 0,
     output_tokens: input.output_tokens ?? 0,
     characters: input.characters ?? 0,

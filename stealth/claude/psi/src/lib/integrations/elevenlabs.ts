@@ -14,7 +14,7 @@ export interface SynthesizeParams {
 
 export async function synthesizeSpeech(
   params: SynthesizeParams,
-  ctx: { clinic_id: string | null; therapist_id: string | null },
+  ctx: { clinic_id: string; therapist_id: string | null },
 ): Promise<ArrayBuffer> {
   const cfg = serverConfig();
   const voice = params.voice_id ?? cfg.ELEVENLABS_VOICE_ID;

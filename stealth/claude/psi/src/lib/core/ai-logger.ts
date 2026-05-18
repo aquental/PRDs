@@ -50,11 +50,11 @@ function computeTTSCost(model: string, characters: number): number {
 
 /** Entrada para registro. Feita server-side apenas. */
 export interface AIUsageInput {
-  clinic_id: string | null;
+  clinic_id: string;
   therapist_id: string | null;
   call_type: AICallType;
   provider: string;
-  model?: string;
+  model: string;
   input_tokens?: number;
   output_tokens?: number;
   characters?: number;

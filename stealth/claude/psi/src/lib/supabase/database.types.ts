@@ -39,7 +39,7 @@ export type Database = {
         Row: {
           call_type: Database["public"]["Enums"]["ai_call_type"];
           characters: number;
-          clinic_id: string | null;
+          clinic_id: string;
           cost_usd: number;
           created_at: string;
           duration_ms: number | null;
@@ -47,7 +47,7 @@ export type Database = {
           id: string;
           input_tokens: number;
           metadata: Json;
-          model: string | null;
+          model: string;
           output_tokens: number;
           provider: string;
           status: string;
@@ -56,7 +56,7 @@ export type Database = {
         Insert: {
           call_type: Database["public"]["Enums"]["ai_call_type"];
           characters?: number;
-          clinic_id?: string | null;
+          clinic_id: string;
           cost_usd?: number;
           created_at?: string;
           duration_ms?: number | null;
@@ -64,7 +64,7 @@ export type Database = {
           id?: string;
           input_tokens?: number;
           metadata?: Json;
-          model?: string | null;
+          model: string;
           output_tokens?: number;
           provider: string;
           status?: string;
@@ -855,7 +855,7 @@ export type Database = {
           cnpj: string | null;
           created_at: string;
           crp: string;
-          default_session_fee: number | null;
+          default_session_fee: number;
           email: string;
           id: string;
           name: string;
