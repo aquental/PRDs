@@ -83,7 +83,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   if (!clinic) throw error(404, "Clínica não encontrada");
 
-  const [{ data: expenses }, { data: templates }, { data: patients }, { count: therapistCount }] = await Promise.all([
+  const [{ data: expenses }, { data: templates }, { data: patients }, { count: therapistCount }, { data: monthClosures }] = await Promise.all([
     locals.supabase
       .from("expenses")
       .select(
@@ -109,12 +109,18 @@ export const load: PageServerLoad = async ({ locals }) => {
       .from("therapists")
       .select("id", { count: "exact", head: true })
       .eq("clinic_id", therapist.clinic_id),
+    locals.supabase
+      .from("month_closures")
+      .select("id, month_year, status, closed_at, reopened_at, log")
+      .eq("therapist_id", therapist.id)
+      .order("month_year", { ascending: false })
+      .limit(24),
   ]);
 
   const { cep: cepEnabled } = await getServiceSwitches();
   const isClinicMode = (therapistCount ?? 0) > 1;
 
-  return { therapist, clinic, expenses: expenses ?? [], templates: templates ?? [], patients: patients ?? [], cepEnabled, isClinicMode };
+  return { therapist, clinic, expenses: expenses ?? [], templates: templates ?? [], patients: patients ?? [], cepEnabled, isClinicMode, monthClosures: monthClosures ?? [] };
 };
 
 export const actions: Actions = {

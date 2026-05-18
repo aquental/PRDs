@@ -48,8 +48,16 @@
 		is_active: boolean;
 	}
 	interface PatientOption { id: string; name: string; }
+	interface MonthClosure {
+		id: string;
+		month_year: string;
+		status: 'open' | 'closed';
+		closed_at: string | null;
+		reopened_at: string | null;
+		log: unknown[];
+	}
 	interface Props {
-		data: { therapist: Therapist; clinic: Clinic; expenses: Expense[]; templates: Template[]; patients: PatientOption[]; cepEnabled: boolean; isClinicMode: boolean };
+		data: { therapist: Therapist; clinic: Clinic; expenses: Expense[]; templates: Template[]; patients: PatientOption[]; cepEnabled: boolean; isClinicMode: boolean; monthClosures: MonthClosure[] };
 		form: { error?: unknown; success?: string } | null;
 	}
 	let { data, form }: Props = $props();
@@ -65,7 +73,20 @@
 	}
 
 	// ── Tabs ──────────────────────────────────────────────
-	let activeTab = $state<'perfil' | 'politica' | 'despesas' | 'modelos'>('perfil');
+	let activeTab = $state<'perfil' | 'politica' | 'despesas' | 'modelos' | 'historico'>('perfil');
+
+	// ── Histórico helpers ─────────────────────────────────
+	const MONTHS_PT_SHORT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+	function formatMonthYear(my: string): string {
+		const [yr, mo] = my.split('-').map(Number);
+		return `${MONTHS_PT_SHORT[mo - 1]}/${String(yr).slice(2)}`;
+	}
+
+	function formatDateTime(iso: string | null): string {
+		if (!iso) return '—';
+		return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+	}
 
 	// ── Perfil / Clínica ──────────────────────────────────
 	let editingTherapist = $state(false);
@@ -512,6 +533,14 @@
 					: 'border-transparent text-ink-muted hover:text-ink dark:hover:text-bg'}"
 			>
 				Modelos
+			</button>
+			<button
+				onclick={() => (activeTab = 'historico')}
+				class="border-b-2 px-4 py-2 text-sm font-medium transition-colors {activeTab === 'historico'
+					? 'border-primary text-primary'
+					: 'border-transparent text-ink-muted hover:text-ink dark:hover:text-bg'}"
+			>
+				Histórico
 			</button>
 		</div>
 	</div>
@@ -1252,6 +1281,49 @@
 						{/each}
 					</ul>
 				{/if}
+			{/if}
+		</Card>
+	{/if}
+
+	<!-- ── Aba: Histórico de fechamentos ── -->
+	{#if activeTab === 'historico'}
+		<Card title="Histórico de fechamentos mensais">
+			{#if data.monthClosures.length === 0}
+				<p class="py-6 text-center text-sm text-ink-muted">Nenhum fechamento registrado ainda.</p>
+			{:else}
+				<ul class="divide-y divide-primary-100/40 dark:divide-white/5">
+					{#each data.monthClosures as closure (closure.id)}
+						<li class="flex items-center gap-3 py-3">
+							<!-- Status badge -->
+							<span
+								class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium {closure.status === 'closed'
+									? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+									: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'}"
+							>
+								{closure.status === 'closed' ? 'Fechado' : 'Reaberto'}
+							</span>
+
+							<!-- Month label -->
+							<span class="font-medium text-sm text-ink dark:text-bg capitalize">
+								{formatMonthYear(closure.month_year)}
+							</span>
+
+							<!-- Closed at -->
+							<span class="text-xs text-ink-muted">
+								{closure.status === 'closed'
+									? `Fechado em ${formatDateTime(closure.closed_at)}`
+									: `Reaberto em ${formatDateTime(closure.reopened_at)}`}
+							</span>
+
+							<!-- Log count -->
+							{#if Array.isArray(closure.log) && closure.log.length > 1}
+								<span class="ml-auto shrink-0 text-xs text-ink-muted">
+									{closure.log.length} eventos
+								</span>
+							{/if}
+						</li>
+					{/each}
+				</ul>
 			{/if}
 		</Card>
 	{/if}

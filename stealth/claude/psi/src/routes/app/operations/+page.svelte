@@ -1,11 +1,13 @@
 <script lang="ts">
-	import { Microphone, Buildings, User, CaretDown, Lock } from 'phosphor-svelte';
+	import { Microphone, Buildings, User, CaretDown, Lock, LockOpen } from 'phosphor-svelte';
 	import DayMetrics from '$lib/ui/operational/DayMetrics.svelte';
 	import PendingRegistrations from '$lib/ui/operational/PendingRegistrations.svelte';
 	import BillsToPay from '$lib/ui/operational/BillsToPay.svelte';
 	import RepasseCard from '$lib/ui/operational/RepasseCard.svelte';
 	import CashFlowSummary from '$lib/ui/operational/CashFlowSummary.svelte';
 	import QuickActions from '$lib/ui/operational/QuickActions.svelte';
+	import CloseMonthModal from '$lib/ui/operational/CloseMonthModal.svelte';
+	import { enhance } from '$app/forms';
 	import type { PageData } from './$types';
 
 	interface Props {
@@ -29,8 +31,13 @@
 		if (form?.success) {
 			if (form.action === 'registerSession') showToast('Sessão registrada com sucesso.');
 			else if (form.action === 'markExpensePaid') showToast('Conta marcada como paga.');
+			else if (form.action === 'closeMonth') showToast('Mês fechado com sucesso.');
+			else if (form.action === 'reopenMonth') showToast('Mês reaberto.');
 		}
 	});
+
+	// ── Close month modal ──────────────────────────────────────
+	let showCloseModal = $state(false);
 
 	// ── Date labels ────────────────────────────────────────────
 	const MONTHS_PT = [
@@ -164,6 +171,12 @@
 
 	// ── Month closure ──────────────────────────────────────────
 	const isClosed = $derived(data.monthClosure?.status === 'closed');
+	const unregisteredCount = $derived(
+		data.monthSessions.filter((s) => s.status === 'scheduled').length,
+	);
+	const unpaidOverdueCount = $derived(
+		overdueExpenses.filter((e) => !paidDescriptions.has(e.description)).length,
+	);
 </script>
 
 <!-- ── Toast ──────────────────────────────────────────────── -->
@@ -229,6 +242,25 @@
 	>
 		<Lock size={16} class="shrink-0" aria-hidden="true" />
 		<span>Mês de <strong>{monthLabel}</strong> fechado — edições bloqueadas.</span>
+		{#if data.monthClosure}
+			<form
+				method="POST"
+				action="?/reopenMonth"
+				use:enhance={() => async ({ update }) => { await update(); }}
+				class="ml-auto shrink-0"
+			>
+				<input type="hidden" name="closure_id" value={data.monthClosure.id} />
+				<input type="hidden" name="month_year" value={data.monthYear} />
+				<button
+					type="submit"
+					class="flex min-h-[44px] items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium text-amber-700 transition hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/30"
+					aria-label="Reabrir mês {monthLabel}"
+				>
+					<LockOpen size={14} />
+					Reabrir
+				</button>
+			</form>
+		{/if}
 	</div>
 {/if}
 
@@ -295,6 +327,17 @@
 
 	<!-- Ações rápidas — full width -->
 	<div class="lg:col-span-2">
-		<QuickActions />
+		<QuickActions {isClosed} onCloseMonth={() => (showCloseModal = true)} />
 	</div>
 </div>
+
+<!-- ── Close month modal ───────────────────────────────────── -->
+{#if showCloseModal}
+	<CloseMonthModal
+		monthYear={data.monthYear}
+		{monthLabel}
+		{unregisteredCount}
+		{unpaidOverdueCount}
+		onClose={() => (showCloseModal = false)}
+	/>
+{/if}

@@ -2,6 +2,7 @@ import { error, fail } from "@sveltejs/kit";
 import { z } from "zod";
 import type { Actions, PageServerLoad } from "./$types";
 import { invalidateDashboard } from "$lib/redis";
+import { logger } from "$lib/logger";
 
 const RegisterSessionSchema = z.object({
   session_id: z.string().uuid(),
@@ -13,6 +14,15 @@ const MarkExpensePaidSchema = z.object({
   description: z.string().min(1),
   amount: z.coerce.number().nonnegative(),
   today: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+const CloseMonthSchema = z.object({
+  month_year: z.string().regex(/^\d{4}-\d{2}$/),
+});
+
+const ReopenMonthSchema = z.object({
+  closure_id: z.string().uuid(),
+  month_year: z.string().regex(/^\d{4}-\d{2}$/),
 });
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
@@ -223,5 +233,120 @@ export const actions: Actions = {
     if (err) return fail(400, { error: err.message });
     await invalidateDashboard(therapist.id);
     return { success: true, action: "markExpensePaid" };
+  },
+
+  closeMonth: async ({ request, locals }) => {
+    const { user } = await locals.safeGetSession();
+    if (!user) return fail(401, { error: "Não autenticado" });
+
+    const { data: therapist } = await locals.supabase
+      .from("therapists")
+      .select("id, clinic_id, name")
+      .eq("user_id", user.id)
+      .single();
+    if (!therapist) return fail(403, { error: "Sem permissão" });
+
+    const parsed = CloseMonthSchema.safeParse(
+      Object.fromEntries(await request.formData()),
+    );
+    if (!parsed.success)
+      return fail(400, { error: parsed.error.flatten().fieldErrors });
+
+    const { month_year } = parsed.data;
+    const now = new Date().toISOString();
+    const logEntry = { action: "closed", at: now, by_name: therapist.name, role: "therapist" };
+
+    const { data: existing } = await locals.supabase
+      .from("month_closures")
+      .select("id, log")
+      .eq("therapist_id", therapist.id)
+      .eq("month_year", month_year)
+      .maybeSingle();
+
+    const { error: err } = await locals.supabase
+      .from("month_closures")
+      .upsert(
+        {
+          clinic_id: therapist.clinic_id,
+          therapist_id: therapist.id,
+          month_year,
+          status: "closed",
+          closed_at: now,
+          closed_by: therapist.id,
+          log: [...((existing?.log as unknown[]) ?? []), logEntry],
+        },
+        { onConflict: "clinic_id,therapist_id,month_year" },
+      );
+
+    if (err) return fail(400, { error: err.message });
+    await invalidateDashboard(therapist.id);
+    return { success: true, action: "closeMonth" };
+  },
+
+  reopenMonth: async ({ request, locals }) => {
+    const { user } = await locals.safeGetSession();
+    if (!user) return fail(401, { error: "Não autenticado" });
+
+    const { data: therapist } = await locals.supabase
+      .from("therapists")
+      .select("id, clinic_id, name")
+      .eq("user_id", user.id)
+      .single();
+    if (!therapist) return fail(403, { error: "Sem permissão" });
+
+    const parsed = ReopenMonthSchema.safeParse(
+      Object.fromEntries(await request.formData()),
+    );
+    if (!parsed.success)
+      return fail(400, { error: parsed.error.flatten().fieldErrors });
+
+    const { closure_id, month_year } = parsed.data;
+
+    const { data: closure } = await locals.supabase
+      .from("month_closures")
+      .select("id, log, clinic_id")
+      .eq("id", closure_id)
+      .eq("therapist_id", therapist.id)
+      .single();
+    if (!closure) return fail(404, { error: "Fechamento não encontrado" });
+
+    const now = new Date().toISOString();
+    const logEntry = { action: "reopened", at: now, by_name: therapist.name, role: "therapist" };
+
+    const { error: err } = await locals.supabase
+      .from("month_closures")
+      .update({
+        status: "open",
+        reopened_at: now,
+        reopened_by: therapist.id,
+        log: [...((closure.log as unknown[]) ?? []), logEntry],
+      })
+      .eq("id", closure_id);
+
+    if (err) return fail(400, { error: err.message });
+
+    // Check clinic mode for push notification logging
+    const { count: therapistCount } = await locals.supabase
+      .from("therapists")
+      .select("id", { count: "exact", head: true })
+      .eq("clinic_id", therapist.clinic_id);
+
+    if ((therapistCount ?? 0) > 1) {
+      logger.info(
+        {
+          pushPayload: {
+            clinic_id: therapist.clinic_id,
+            event: "month_reopened",
+            month_year,
+            by: therapist.name,
+            at: now,
+          },
+        },
+        "generateMonthReopenedPush triggered",
+      );
+    }
+
+    await invalidateDashboard(therapist.id);
+    return { success: true, action: "reopenMonth" };
   },
 };
