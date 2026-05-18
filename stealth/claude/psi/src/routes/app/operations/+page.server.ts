@@ -1,5 +1,19 @@
-import { error } from "@sveltejs/kit";
-import type { PageServerLoad } from "./$types";
+import { error, fail } from "@sveltejs/kit";
+import { z } from "zod";
+import type { Actions, PageServerLoad } from "./$types";
+import { invalidateDashboard } from "$lib/redis";
+
+const RegisterSessionSchema = z.object({
+  session_id: z.string().uuid(),
+  status: z.enum(["completed", "no_show", "cancelled"]),
+});
+
+const MarkExpensePaidSchema = z.object({
+  expense_id: z.string().uuid(),
+  description: z.string().min(1),
+  amount: z.coerce.number().nonnegative(),
+  today: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
   const { therapist, clinic } = await parent();
@@ -35,11 +49,14 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
   const windowEnd = new Date(now);
   windowEnd.setUTCDate(windowEnd.getUTCDate() + 1);
 
-  // End of current week (Sunday) for bills-this-week filter
+  // Current week bounds (Sun–Sat) for cashflow and bills
   const localDow = new Date(now.toLocaleString("en-US", { timeZone: tz })).getDay();
-  const weekEnd = new Date(now);
-  weekEnd.setDate(weekEnd.getDate() + (6 - localDow));
-  const weekEndStr = weekEnd.toLocaleDateString("sv", { timeZone: tz });
+  const weekStartDate = new Date(now);
+  weekStartDate.setDate(weekStartDate.getDate() - localDow);
+  const weekEndDate = new Date(now);
+  weekEndDate.setDate(weekEndDate.getDate() + (6 - localDow));
+  const weekStartStr = weekStartDate.toLocaleDateString("sv", { timeZone: tz });
+  const weekEndStr = weekEndDate.toLocaleDateString("sv", { timeZone: tz });
 
   const [
     { data: rawSessions },
@@ -91,10 +108,10 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
       .eq("therapist_id", therapist.id)
       .eq("active", true),
 
-    // All sessions this month for cashflow summary
+    // All sessions this month for cashflow and repasse summaries
     locals.supabase
       .from("sessions")
-      .select("fee, status")
+      .select("fee, status, scheduled_at, paid")
       .eq("therapist_id", therapist.id)
       .gte("scheduled_at", `${monthYear}-01`)
       .lte("scheduled_at", `${monthYear}-31T23:59:59`),
@@ -117,7 +134,94 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
     monthClosure: monthClosure ?? null,
     cancellationPolicies: cancellationPolicies ?? [],
     today: todayStr,
+    weekStart: weekStartStr,
     weekEnd: weekEndStr,
     monthYear,
   };
+};
+
+export const actions: Actions = {
+  registerSession: async ({ request, locals }) => {
+    const { user } = await locals.safeGetSession();
+    if (!user) return fail(401, { error: "Não autenticado" });
+
+    const { data: therapist } = await locals.supabase
+      .from("therapists")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+    if (!therapist) return fail(403, { error: "Sem permissão" });
+
+    const parsed = RegisterSessionSchema.safeParse(
+      Object.fromEntries(await request.formData()),
+    );
+    if (!parsed.success)
+      return fail(400, { error: parsed.error.flatten().fieldErrors });
+
+    const { session_id, status } = parsed.data;
+
+    // Verify the session belongs to this therapist
+    const { data: session } = await locals.supabase
+      .from("sessions")
+      .select("id")
+      .eq("id", session_id)
+      .eq("therapist_id", therapist.id)
+      .single();
+    if (!session) return fail(404, { error: "Sessão não encontrada" });
+
+    const update: Record<string, unknown> = { status };
+    if (status === "cancelled") update.cancelled_at = new Date().toISOString();
+
+    const { error: err } = await locals.supabase
+      .from("sessions")
+      .update(update)
+      .eq("id", session_id);
+
+    if (err) return fail(400, { error: err.message });
+    await invalidateDashboard(therapist.id);
+    return { success: true, action: "registerSession" };
+  },
+
+  markExpensePaid: async ({ request, locals }) => {
+    const { user } = await locals.safeGetSession();
+    if (!user) return fail(401, { error: "Não autenticado" });
+
+    const { data: therapist } = await locals.supabase
+      .from("therapists")
+      .select("id, clinic_id")
+      .eq("user_id", user.id)
+      .single();
+    if (!therapist) return fail(403, { error: "Sem permissão" });
+
+    const parsed = MarkExpensePaidSchema.safeParse(
+      Object.fromEntries(await request.formData()),
+    );
+    if (!parsed.success)
+      return fail(400, { error: parsed.error.flatten().fieldErrors });
+
+    const { expense_id, description, amount, today } = parsed.data;
+
+    // Verify expense belongs to this clinic
+    const { data: expense } = await locals.supabase
+      .from("expenses")
+      .select("id")
+      .eq("id", expense_id)
+      .eq("clinic_id", therapist.clinic_id)
+      .single();
+    if (!expense) return fail(404, { error: "Despesa não encontrada" });
+
+    const { error: err } = await locals.supabase
+      .from("finance_entries")
+      .insert({
+        therapist_id: therapist.id,
+        type: "expense",
+        amount,
+        description,
+        occurred_at: today,
+      });
+
+    if (err) return fail(400, { error: err.message });
+    await invalidateDashboard(therapist.id);
+    return { success: true, action: "markExpensePaid" };
+  },
 };

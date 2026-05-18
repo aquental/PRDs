@@ -1,24 +1,38 @@
 <script lang="ts">
-	import {
-		Microphone,
-		Buildings,
-		User,
-		CaretDown,
-		CheckCircle,
-		WarningCircle,
-		Warning,
-		ArrowRight,
-		Receipt,
-		CalendarBlank,
-		Gear,
-		Lock,
-	} from 'phosphor-svelte';
-	import { formatBRL } from '$lib/utils/format';
-	import Card from '$lib/ui/Card.svelte';
+	import { Microphone, Buildings, User, CaretDown, Lock } from 'phosphor-svelte';
+	import DayMetrics from '$lib/ui/operational/DayMetrics.svelte';
+	import PendingRegistrations from '$lib/ui/operational/PendingRegistrations.svelte';
+	import BillsToPay from '$lib/ui/operational/BillsToPay.svelte';
+	import RepasseCard from '$lib/ui/operational/RepasseCard.svelte';
+	import CashFlowSummary from '$lib/ui/operational/CashFlowSummary.svelte';
+	import QuickActions from '$lib/ui/operational/QuickActions.svelte';
 	import type { PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
+	interface Props {
+		data: PageData;
+		form: { success?: boolean; action?: string; error?: unknown } | null;
+	}
 
+	let { data, form }: Props = $props();
+
+	// ── Toast ─────────────────────────────────────────────────
+	let toast = $state<string | null>(null);
+	let toastTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function showToast(msg: string) {
+		if (toastTimer) clearTimeout(toastTimer);
+		toast = msg;
+		toastTimer = setTimeout(() => (toast = null), 3500);
+	}
+
+	$effect(() => {
+		if (form?.success) {
+			if (form.action === 'registerSession') showToast('Sessão registrada com sucesso.');
+			else if (form.action === 'markExpensePaid') showToast('Conta marcada como paga.');
+		}
+	});
+
+	// ── Date labels ────────────────────────────────────────────
 	const MONTHS_PT = [
 		'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
 		'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
@@ -40,14 +54,6 @@
 	});
 
 	const tz = $derived(data.clinic?.timezone ?? 'America/Sao_Paulo');
-
-	function sessionTime(scheduledAt: string): string {
-		return new Date(scheduledAt).toLocaleTimeString('pt-BR', {
-			hour: '2-digit',
-			minute: '2-digit',
-			timeZone: tz,
-		});
-	}
 
 	// ── Session metrics ────────────────────────────────────────
 	const pendingSessions = $derived(
@@ -80,7 +86,7 @@
 			.reduce((sum, s) => sum + fixo + (perc / 100) * (s.fee ?? 0), 0);
 	});
 
-	// ── Bills ──────────────────────────────────────────────────
+	// ── Bills classification ───────────────────────────────────
 	function expenseDueDate(e: (typeof data.expenses)[0]): string | null {
 		if (e.frequency === 'one_time') return e.due_date ?? null;
 		if (e.due_day) return `${data.monthYear}-${String(e.due_day).padStart(2, '0')}`;
@@ -102,24 +108,74 @@
 			return d !== null && d > data.today && d <= data.weekEnd;
 		}),
 	);
-	const hasBills = $derived(
-		overdueExpenses.length + dueTodayExpenses.length + dueThisWeekExpenses.length > 0,
+
+	const paidDescriptions = $derived(
+		new Set(data.monthExpenseEntries.map((e) => e.description)),
 	);
 
 	// ── Month cashflow ─────────────────────────────────────────
-	const monthRevenue = $derived(
-		data.monthSessions
-			.filter((s) => s.status === 'completed' || s.status === 'no_show')
-			.reduce((sum, s) => sum + (s.fee ?? 0), 0),
+	const chargedSessions = $derived(
+		data.monthSessions.filter(
+			(s) => s.status === 'completed' || s.status === 'no_show',
+		),
 	);
-	const monthExpenses = $derived(
+	const monthSessionCount = $derived(chargedSessions.length);
+	const monthRevenue = $derived(
+		chargedSessions.reduce((sum, s) => sum + (s.fee ?? 0), 0),
+	);
+	const monthExpenseTotal = $derived(
 		data.monthExpenseEntries.reduce((sum, e) => sum + e.amount, 0),
 	);
-	const monthNet = $derived(monthRevenue - monthExpenses);
+
+	// ── Weekly cashflow ────────────────────────────────────────
+	const weekRevenue = $derived.by(() => {
+		return data.monthSessions
+			.filter((s) => {
+				if (s.status !== 'completed' && s.status !== 'no_show') return false;
+				const d = new Date(s.scheduled_at).toLocaleDateString('sv', { timeZone: tz });
+				return d >= data.weekStart && d <= data.weekEnd;
+			})
+			.reduce((sum, s) => sum + (s.fee ?? 0), 0);
+	});
+
+	const weekExpenses = $derived(
+		data.monthExpenseEntries
+			.filter((e) => e.occurred_at >= data.weekStart && e.occurred_at <= data.weekEnd)
+			.reduce((sum, e) => sum + e.amount, 0),
+	);
+
+	const weekRepasse = $derived.by(() => {
+		if (!data.isClinicMode || repasseDisabled) return 0;
+		const { repasse_fixo: fixo, repasse_percentual: perc } = data.clinicOp;
+		return data.monthSessions
+			.filter((s) => {
+				if (s.status !== 'completed' && s.status !== 'no_show') return false;
+				const d = new Date(s.scheduled_at).toLocaleDateString('sv', { timeZone: tz });
+				return d >= data.weekStart && d <= data.weekEnd;
+			})
+			.reduce((sum, s) => sum + fixo + (perc / 100) * (s.fee ?? 0), 0);
+	});
+
+	const openReceivables = $derived(
+		data.monthSessions
+			.filter((s) => (s.status === 'completed' || s.status === 'no_show') && !s.paid)
+			.reduce((sum, s) => sum + (s.fee ?? 0), 0),
+	);
 
 	// ── Month closure ──────────────────────────────────────────
 	const isClosed = $derived(data.monthClosure?.status === 'closed');
 </script>
+
+<!-- ── Toast ──────────────────────────────────────────────── -->
+{#if toast}
+	<div
+		role="status"
+		aria-live="polite"
+		class="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-ink px-5 py-2.5 text-sm font-medium text-bg shadow-lg dark:bg-bg dark:text-ink"
+	>
+		{toast}
+	</div>
+{/if}
 
 <!-- ── Page header ──────────────────────────────────────────── -->
 <div class="mb-6 flex items-start justify-between gap-4">
@@ -149,15 +205,16 @@
 	<div
 		class="mb-4 flex items-center gap-2 rounded-xl border border-primary-100/60 bg-primary-50/50 px-4 py-2.5 text-sm dark:border-white/5 dark:bg-white/5"
 	>
-		<Buildings size={16} class="shrink-0 text-primary" />
+		<Buildings size={16} class="shrink-0 text-primary" aria-hidden="true" />
 		<span class="font-medium text-ink dark:text-bg">{data.clinic?.name}</span>
-		<span class="text-ink-muted">·</span>
-		<User size={14} class="shrink-0 text-ink-muted" />
+		<span class="text-ink-muted" aria-hidden="true">·</span>
+		<User size={14} class="shrink-0 text-ink-muted" aria-hidden="true" />
 		<span class="text-ink-muted">{data.therapist?.name}</span>
 		<button
-			class="ml-auto flex items-center gap-1 text-xs text-ink-muted hover:text-ink dark:hover:text-bg"
-			title="Trocar contexto"
+			class="ml-auto flex min-h-[44px] items-center gap-1 text-xs text-ink-muted"
+			title="Trocar contexto — em breve"
 			disabled
+			aria-label="Trocar contexto — em breve"
 		>
 			<CaretDown size={14} />
 		</button>
@@ -167,9 +224,10 @@
 <!-- ── Month closed notice ─────────────────────────────────── -->
 {#if isClosed}
 	<div
+		role="alert"
 		class="mb-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300"
 	>
-		<Lock size={16} class="shrink-0" />
+		<Lock size={16} class="shrink-0" aria-hidden="true" />
 		<span>Mês de <strong>{monthLabel}</strong> fechado — edições bloqueadas.</span>
 	</div>
 {/if}
@@ -179,284 +237,64 @@
 
 	<!-- Resumo do dia — right col row 1 on desktop -->
 	<div class="lg:col-start-2 lg:row-start-1">
-		<Card title="Resumo do dia">
-			<div class="grid grid-cols-2 gap-4">
-				<div class="rounded-lg bg-primary-50/60 p-3 dark:bg-white/5">
-					<p class="text-xs text-ink-muted">Sessões hoje</p>
-					<p class="mt-1 text-2xl font-bold text-ink dark:text-bg">
-						{data.todaySessions.length}
-					</p>
-					<p class="mt-0.5 text-xs text-ink-muted">
-						{pendingSessions.length} pendente{pendingSessions.length !== 1 ? 's' : ''}
-					</p>
-				</div>
-				<div class="rounded-lg bg-primary-50/60 p-3 dark:bg-white/5">
-					<p class="text-xs text-ink-muted">Saldo do dia</p>
-					<p class="mt-1 text-2xl font-bold text-ink dark:text-bg">
-						{formatBRL(todayRevenue)}
-					</p>
-					{#if data.isClinicMode && !repasseDisabled}
-						<p class="mt-0.5 text-xs text-ink-muted">
-							líquido: {formatBRL(todayRevenue - repasseToday)}
-						</p>
-					{/if}
-				</div>
-			</div>
-
-			{#if data.todaySessions.length > 0}
-				<div class="mt-3 flex flex-wrap gap-2">
-					{#if completedToday > 0}
-						<span class="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300">
-							{completedToday} realizada{completedToday !== 1 ? 's' : ''}
-						</span>
-					{/if}
-					{#if pendingSessions.length > 0}
-						<span class="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-							{pendingSessions.length} agendada{pendingSessions.length !== 1 ? 's' : ''}
-						</span>
-					{/if}
-					{#if cancelledToday > 0}
-						<span class="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-							{cancelledToday} cancelada{cancelledToday !== 1 ? 's' : ''}
-						</span>
-					{/if}
-					{#if noShowToday > 0}
-						<span class="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900/30 dark:text-red-300">
-							{noShowToday} falta{noShowToday !== 1 ? 's' : ''}
-						</span>
-					{/if}
-				</div>
-			{/if}
-		</Card>
+		<DayMetrics
+			total={data.todaySessions.length}
+			pending={pendingSessions.length}
+			completed={completedToday}
+			cancelled={cancelledToday}
+			noShow={noShowToday}
+			revenue={todayRevenue}
+			isClinicMode={data.isClinicMode}
+			{repasseDisabled}
+			{repasseToday}
+		/>
 	</div>
 
 	<!-- Registros pendentes — left col row 1 on desktop -->
 	<div class="lg:col-start-1 lg:row-start-1">
-		{#if pendingSessions.length === 0}
-			<div
-				class="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm dark:border-green-900/40 dark:bg-green-900/15"
-			>
-				<CheckCircle size={18} class="shrink-0 text-green-600 dark:text-green-400" weight="fill" />
-				<span class="text-green-800 dark:text-green-300">
-					Tudo registrado hoje
-				</span>
-				<a
-					href="/app/sessions"
-					class="ml-auto flex items-center gap-1 text-xs text-green-700 hover:underline dark:text-green-400"
-				>
-					ver histórico <ArrowRight size={12} />
-				</a>
-			</div>
-		{:else}
-			<Card title="Registros pendentes">
-				{#snippet actions()}
-					<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-						{pendingSessions.length}
-					</span>
-				{/snippet}
-
-				<ul class="space-y-2">
-					{#each pendingSessions as session (session.id)}
-						{@const patientName = (session.patients as { name: string }[] | null)?.[0]?.name ?? 'Paciente'}
-						<li class="flex items-center gap-3 rounded-lg border border-primary-100/40 bg-primary-50/30 px-3 py-2.5 dark:border-white/5 dark:bg-white/5">
-							<div class="min-w-0 flex-1">
-								<p class="truncate text-sm font-medium text-ink dark:text-bg">
-									{patientName}
-								</p>
-								<p class="text-xs text-ink-muted">{sessionTime(session.scheduled_at)}</p>
-							</div>
-							<span class="text-xs text-ink-muted">
-								{formatBRL(session.fee ?? 0)}
-							</span>
-							<a
-								href="/app/sessions"
-								class="ml-1 shrink-0 text-xs font-medium text-primary hover:underline"
-								aria-label="Registrar sessão de {patientName}"
-							>
-								registrar
-							</a>
-						</li>
-					{/each}
-				</ul>
-
-				<div class="mt-3 border-t border-primary-100/40 pt-3 dark:border-white/5">
-					<a
-						href="/app/sessions"
-						class="flex items-center gap-1 text-xs text-primary hover:underline"
-					>
-						Ir para sessões <ArrowRight size={12} />
-					</a>
-				</div>
-			</Card>
-		{/if}
+		<PendingRegistrations sessions={pendingSessions} {tz} />
 	</div>
 
 	<!-- Contas a pagar — left col row 2 on desktop -->
 	<div class="lg:col-start-1 lg:row-start-2">
-		<Card title="Contas a pagar">
-			{#if !hasBills}
-				<p class="text-sm text-ink-muted">Nenhuma conta pendente esta semana.</p>
-			{:else}
-				<div class="space-y-4">
-					{#if overdueExpenses.length > 0}
-						<div>
-							<p class="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">
-								<Warning size={13} weight="fill" /> Atrasadas
-							</p>
-							<ul class="space-y-1.5">
-								{#each overdueExpenses as e (e.id)}
-									<li class="flex items-center justify-between rounded-lg border border-red-200/60 bg-red-50/60 px-3 py-2 dark:border-red-900/30 dark:bg-red-900/10">
-										<span class="text-sm text-red-900 dark:text-red-300">{e.description}</span>
-										<span class="text-sm font-semibold text-red-700 dark:text-red-400">{formatBRL(e.amount)}</span>
-									</li>
-								{/each}
-							</ul>
-						</div>
-					{/if}
-
-					{#if dueTodayExpenses.length > 0}
-						<div>
-							<p class="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
-								<WarningCircle size={13} weight="fill" /> Vence hoje
-							</p>
-							<ul class="space-y-1.5">
-								{#each dueTodayExpenses as e (e.id)}
-									<li class="flex items-center justify-between rounded-lg border border-amber-200/60 bg-amber-50/60 px-3 py-2 dark:border-amber-900/30 dark:bg-amber-900/10">
-										<span class="text-sm text-amber-900 dark:text-amber-300">{e.description}</span>
-										<span class="text-sm font-semibold text-amber-700 dark:text-amber-400">{formatBRL(e.amount)}</span>
-									</li>
-								{/each}
-							</ul>
-						</div>
-					{/if}
-
-					{#if dueThisWeekExpenses.length > 0}
-						<div>
-							<p class="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
-								Esta semana
-							</p>
-							<ul class="space-y-1.5">
-								{#each dueThisWeekExpenses as e (e.id)}
-									<li class="flex items-center justify-between rounded-lg border border-primary-100/40 px-3 py-2 dark:border-white/5">
-										<span class="text-sm text-ink dark:text-bg">{e.description}</span>
-										<span class="text-sm text-ink-muted">{formatBRL(e.amount)}</span>
-									</li>
-								{/each}
-							</ul>
-						</div>
-					{/if}
-				</div>
-			{/if}
-
-			<div class="mt-3 border-t border-primary-100/40 pt-3 dark:border-white/5">
-				<a
-					href="/app/settings"
-					class="flex items-center gap-1 text-xs text-primary hover:underline"
-				>
-					Gerenciar despesas <ArrowRight size={12} />
-				</a>
-			</div>
-		</Card>
+		<BillsToPay
+			overdue={overdueExpenses}
+			dueToday={dueTodayExpenses}
+			dueThisWeek={dueThisWeekExpenses}
+			{paidDescriptions}
+			today={data.today}
+		/>
 	</div>
 
-	<!-- Repasse à clínica — right col row 2 on desktop (clinic mode only) -->
+	<!-- Repasse à clínica — right col row 2 (clinic mode only) -->
 	{#if data.isClinicMode}
 		<div class="lg:col-start-2 lg:row-start-2">
-			<Card title="Repasse à clínica">
-				{#if repasseDisabled}
-					<p class="text-sm text-ink-muted">Repasse não configurado.</p>
-					<a
-						href="/app/settings"
-						class="mt-2 flex items-center gap-1 text-xs text-primary hover:underline"
-					>
-						Configurar em Clínica <ArrowRight size={12} />
-					</a>
-				{:else}
-					<div class="space-y-2 text-sm">
-						<div class="flex items-center justify-between">
-							<span class="text-ink-muted">Fixo por sessão</span>
-							<span class="text-ink dark:text-bg">{formatBRL(data.clinicOp.repasse_fixo)}</span>
-						</div>
-						<div class="flex items-center justify-between">
-							<span class="text-ink-muted">Percentual</span>
-							<span class="text-ink dark:text-bg">{data.clinicOp.repasse_percentual}%</span>
-						</div>
-						<div class="mt-1 border-t border-primary-100/40 pt-2 dark:border-white/5">
-							<div class="flex items-center justify-between font-semibold">
-								<span class="text-ink dark:text-bg">Total hoje</span>
-								<span class="text-ink dark:text-bg">{formatBRL(repasseToday)}</span>
-							</div>
-						</div>
-					</div>
-				{/if}
-			</Card>
+			<RepasseCard
+				fixo={data.clinicOp.repasse_fixo}
+				percentual={data.clinicOp.repasse_percentual}
+				disabled={repasseDisabled}
+				{monthRevenue}
+				{monthSessionCount}
+				monthYear={data.monthYear}
+			/>
 		</div>
 	{/if}
 
-	<!-- Fluxo de caixa — right col (auto row) on desktop -->
+	<!-- Fluxo de caixa — right col (auto row) -->
 	<div class="lg:col-start-2">
-		<Card title="Fluxo de caixa">
-			<p class="mb-3 text-xs text-ink-muted capitalize">{monthLabel}</p>
-			<div class="space-y-2 text-sm">
-				<div class="flex items-center justify-between">
-					<span class="text-ink-muted">Receitas realizadas</span>
-					<span class="font-medium text-green-700 dark:text-green-400">{formatBRL(monthRevenue)}</span>
-				</div>
-				<div class="flex items-center justify-between">
-					<span class="text-ink-muted">Despesas registradas</span>
-					<span class="font-medium text-red-700 dark:text-red-400">{formatBRL(monthExpenses)}</span>
-				</div>
-				<div class="mt-1 border-t border-primary-100/40 pt-2 dark:border-white/5">
-					<div class="flex items-center justify-between font-semibold">
-						<span class="text-ink dark:text-bg">Saldo do mês</span>
-						<span class={monthNet >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}>
-							{formatBRL(monthNet)}
-						</span>
-					</div>
-					{#if data.isClinicMode && !repasseDisabled}
-						<div class="mt-1 flex items-center justify-between text-xs text-ink-muted">
-							<span>Líquido após repasse</span>
-							<span>{formatBRL(monthNet - repasseToday)}</span>
-						</div>
-					{/if}
-				</div>
-			</div>
-		</Card>
+		<CashFlowSummary
+			{weekRevenue}
+			{weekExpenses}
+			{openReceivables}
+			isClinicMode={data.isClinicMode}
+			{repasseDisabled}
+			{weekRepasse}
+			{monthLabel}
+		/>
 	</div>
 
 	<!-- Ações rápidas — full width -->
 	<div class="lg:col-span-2">
-		<Card title="Ações rápidas">
-			<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-				<a
-					href="/app/sessions"
-					class="flex flex-col items-center gap-2 rounded-xl border border-primary-100/60 bg-primary-50/40 p-4 text-center transition hover:bg-primary-50 dark:border-white/5 dark:bg-white/5 dark:hover:bg-white/10"
-				>
-					<CalendarBlank size={22} class="text-primary" />
-					<span class="text-xs font-medium text-ink dark:text-bg">Sessões</span>
-				</a>
-				<a
-					href="/app/patients"
-					class="flex flex-col items-center gap-2 rounded-xl border border-primary-100/60 bg-primary-50/40 p-4 text-center transition hover:bg-primary-50 dark:border-white/5 dark:bg-white/5 dark:hover:bg-white/10"
-				>
-					<User size={22} class="text-primary" />
-					<span class="text-xs font-medium text-ink dark:text-bg">Pacientes</span>
-				</a>
-				<a
-					href="/app/settings"
-					class="flex flex-col items-center gap-2 rounded-xl border border-primary-100/60 bg-primary-50/40 p-4 text-center transition hover:bg-primary-50 dark:border-white/5 dark:bg-white/5 dark:hover:bg-white/10"
-				>
-					<Receipt size={22} class="text-primary" />
-					<span class="text-xs font-medium text-ink dark:text-bg">Despesas</span>
-				</a>
-				<a
-					href="/app/settings"
-					class="flex flex-col items-center gap-2 rounded-xl border border-primary-100/60 bg-primary-50/40 p-4 text-center transition hover:bg-primary-50 dark:border-white/5 dark:bg-white/5 dark:hover:bg-white/10"
-				>
-					<Gear size={22} class="text-primary" />
-					<span class="text-xs font-medium text-ink dark:text-bg">Configurações</span>
-				</a>
-			</div>
-		</Card>
+		<QuickActions />
 	</div>
 </div>
