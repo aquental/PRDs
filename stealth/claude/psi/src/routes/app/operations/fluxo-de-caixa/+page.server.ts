@@ -44,7 +44,7 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
   ] = await Promise.all([
     locals.supabase
       .from("clinics")
-      .select("repasse_fixo, repasse_percentual")
+      .select("repasse_fixo, repasse_percentual, min_therapists")
       .eq("id", therapist.clinic_id)
       .single(),
 
@@ -87,7 +87,7 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
     period,
     periodStart,
     periodEnd,
-    isClinicMode: (therapistCount ?? 0) > 1,
+    isClinicMode: (therapistCount ?? 0) >= (clinicOp?.min_therapists ?? 2),
     clinicOp,
     sessions: sessions ?? [],
     expenseEntries: expenseEntries ?? [],

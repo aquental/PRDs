@@ -197,6 +197,7 @@ export type Database = {
           cnpj: string | null;
           created_at: string;
           id: string;
+          min_therapists: number;
           name: string;
           repasse_fixo: number;
           repasse_percentual: number;
@@ -217,6 +218,7 @@ export type Database = {
           cnpj?: string | null;
           created_at?: string;
           id?: string;
+          min_therapists?: number;
           name: string;
           repasse_fixo?: number;
           repasse_percentual?: number;
@@ -237,6 +239,7 @@ export type Database = {
           cnpj?: string | null;
           created_at?: string;
           id?: string;
+          min_therapists?: number;
           name?: string;
           repasse_fixo?: number;
           repasse_percentual?: number;

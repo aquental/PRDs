@@ -101,14 +101,15 @@
 	let clinicZip      = $state('');
 	let clinicCity     = $state('');
 	let clinicState    = $state('');
-	let clinicHoursStart = $state(7);
-	let clinicHoursEnd   = $state(21);
+	let clinicHoursStart     = $state(7);
+	let clinicHoursEnd       = $state(21);
+	let clinicMinTherapists  = $state(2);
 
 	function openCreateClinic() {
 		clinicMode = 'create'; clinicError = '';
 		clinicId = ''; clinicName = ''; clinicCnpj = ''; clinicTimezone = 'America/Sao_Paulo';
 		clinicStreet = ''; clinicNumber = ''; clinicComp = ''; clinicZip = ''; clinicCity = ''; clinicState = '';
-		clinicHoursStart = 7; clinicHoursEnd = 21;
+		clinicHoursStart = 7; clinicHoursEnd = 21; clinicMinTherapists = 2;
 		clinicDialog.showModal();
 	}
 	function openEditClinic(c: ClinicRow) {
@@ -119,6 +120,7 @@
 		clinicZip = c.address_zip ?? ''; clinicCity = c.address_city ?? '';
 		clinicState = c.address_state ?? '';
 		clinicHoursStart = c.working_hours_start; clinicHoursEnd = c.working_hours_end;
+		clinicMinTherapists = c.min_therapists ?? 2;
 		clinicDialog.showModal();
 	}
 	function openDeleteClinic(c: ClinicRow) {
@@ -720,6 +722,12 @@
 					<label class="label" for="clinic-h-end">Horário fim</label>
 					<input id="clinic-h-end" name="working_hours_end" type="number" min="1" max="24"
 						bind:value={clinicHoursEnd} class="input w-full" />
+				</div>
+				<div class="sm:col-span-2">
+					<label class="label" for="clinic-min-therapists">Mín. terapeutas para modo clínica</label>
+					<input id="clinic-min-therapists" name="min_therapists" type="number" min="1" max="100"
+						bind:value={clinicMinTherapists} class="input w-full" />
+					<p class="mt-1 text-xs text-ink-muted">Com este número de terapeutas ativos, o sistema ativa o modo clínica (repasse, painel compartilhado etc.).</p>
 				</div>
 			</div>
 

@@ -18,6 +18,7 @@
 		address_state?: string | null;
 		working_hours_start?: number | null;
 		working_hours_end?: number | null;
+		min_therapists?: number | null;
 	}
 	interface Therapist {
 		name: string;
@@ -111,6 +112,7 @@
 	let cState = $state(untrack(() => data.clinic.address_state ?? ''));
 	let cHoursStart = $state(untrack(() => String(data.clinic.working_hours_start ?? 7)));
 	let cHoursEnd = $state(untrack(() => String(data.clinic.working_hours_end ?? 21)));
+	let cMinTherapists = $state(untrack(() => String(data.clinic.min_therapists ?? 2)));
 	let cRepasseFixo = $state(untrack(() => String((data.clinic as { repasse_fixo?: number }).repasse_fixo ?? 0)));
 	let cRepassePercentual = $state(untrack(() => String((data.clinic as { repasse_percentual?: number }).repasse_percentual ?? 0)));
 
@@ -684,6 +686,12 @@
 								<option value={String(h)}>{String(h).padStart(2, '0')}:00</option>
 							{/each}
 						</select>
+					</div>
+
+					<div class="sm:col-span-2">
+						<label for="min_therapists" class="label">Mín. terapeutas para modo clínica</label>
+						<input id="min_therapists" name="min_therapists" type="number" min="1" max="100" bind:value={cMinTherapists} class="input w-full" />
+						<p class="mt-1 text-xs text-ink-muted">A partir deste número de terapeutas ativos, o sistema ativa o modo clínica.</p>
 					</div>
 
 					{#if data.isClinicMode}

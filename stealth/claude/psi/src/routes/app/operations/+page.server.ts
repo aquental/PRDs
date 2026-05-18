@@ -31,7 +31,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
   // Fetch operational fields not included in the layout query
   const { data: clinicOp } = await locals.supabase
     .from("clinics")
-    .select("cancellation_window_hours, repasse_fixo, repasse_percentual")
+    .select("cancellation_window_hours, repasse_fixo, repasse_percentual, min_therapists")
     .eq("id", therapist.clinic_id)
     .single();
 
@@ -43,7 +43,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
     .select("id", { count: "exact", head: true })
     .eq("clinic_id", therapist.clinic_id);
 
-  const isClinicMode = (therapistCount ?? 0) > 1;
+  const isClinicMode = (therapistCount ?? 0) >= clinicOp.min_therapists;
 
   // Date helpers — use the clinic's timezone
   const tz = clinic?.timezone ?? "America/Sao_Paulo";
@@ -338,12 +338,20 @@ export const actions: Actions = {
     if (err) return fail(400, { error: err.message });
 
     // Check clinic mode for push notification logging
-    const { count: therapistCount } = await locals.supabase
-      .from("therapists")
-      .select("id", { count: "exact", head: true })
-      .eq("clinic_id", therapist.clinic_id);
+    const [{ count: therapistCount }, { data: clinicForMode }] =
+      await Promise.all([
+        locals.supabase
+          .from("therapists")
+          .select("id", { count: "exact", head: true })
+          .eq("clinic_id", therapist.clinic_id),
+        locals.supabase
+          .from("clinics")
+          .select("min_therapists")
+          .eq("id", therapist.clinic_id)
+          .single(),
+      ]);
 
-    if ((therapistCount ?? 0) > 1) {
+    if ((therapistCount ?? 0) >= (clinicForMode?.min_therapists ?? 2)) {
       logger.info(
         {
           pushPayload: {

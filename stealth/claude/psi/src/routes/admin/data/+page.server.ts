@@ -28,6 +28,7 @@ export interface ClinicRow {
   address_state: string | null;
   working_hours_start: number;
   working_hours_end: number;
+  min_therapists: number;
   created_at: string;
 }
 
@@ -265,6 +266,7 @@ export const actions: Actions = {
         address_state: strOrNull(fd, "address_state"),
         working_hours_start: num(fd, "working_hours_start", 7),
         working_hours_end: num(fd, "working_hours_end", 21),
+        min_therapists: num(fd, "min_therapists", 2),
       })
       .eq("id", id);
     if (error) return fail(500, { error: error.message });

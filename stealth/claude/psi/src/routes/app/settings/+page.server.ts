@@ -23,6 +23,7 @@ const ClinicSchema = z.object({
   address_state: z.string().optional(),
   working_hours_start: z.coerce.number().int().min(0).max(23).default(7),
   working_hours_end: z.coerce.number().int().min(1).max(24).default(21),
+  min_therapists: z.coerce.number().int().min(1).max(100).default(2),
   repasse_fixo: z.coerce.number().nonnegative().default(0),
   repasse_percentual: z.coerce.number().nonnegative().max(100).default(0),
 });
@@ -81,7 +82,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   const { data: clinic } = await locals.supabase
     .from("clinics")
     .select(
-      "name, timezone, cnpj, address_street, address_number, address_complement, address_zip, address_city, address_state, working_hours_start, working_hours_end, cancellation_window_hours, repasse_fixo, repasse_percentual",
+      "name, timezone, cnpj, address_street, address_number, address_complement, address_zip, address_city, address_state, working_hours_start, working_hours_end, min_therapists, cancellation_window_hours, repasse_fixo, repasse_percentual",
     )
     .eq("id", therapist.clinic_id)
     .single();
@@ -131,7 +132,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   ]);
 
   const { cep: cepEnabled } = await getServiceSwitches();
-  const isClinicMode = (therapistCount ?? 0) > 1;
+  const isClinicMode = (therapistCount ?? 0) >= clinic.min_therapists;
 
   return {
     therapist,
@@ -203,6 +204,7 @@ export const actions: Actions = {
         address_state: d.address_state || null,
         working_hours_start: d.working_hours_start,
         working_hours_end: d.working_hours_end,
+        min_therapists: d.min_therapists,
         repasse_fixo: d.repasse_fixo,
         repasse_percentual: d.repasse_percentual,
       })

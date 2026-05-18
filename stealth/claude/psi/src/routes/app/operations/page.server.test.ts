@@ -47,6 +47,7 @@ interface LocalsOptions {
   closureUpdateError?: { message: string } | null;
   upsertError?: { message: string } | null;
   therapistCount?: number;
+  minTherapists?: number;
 }
 
 /**
@@ -66,6 +67,7 @@ function makeLocals({
   closureUpdateError = null,
   upsertError = null,
   therapistCount = 1,
+  minTherapists = 2,
 }: LocalsOptions = {}) {
   const callCounts: Record<string, number> = {};
 
@@ -157,6 +159,20 @@ function makeLocals({
         update: vi.fn().mockReturnValue({
           eq: vi.fn().mockResolvedValue({ error: closureUpdateError }),
         }),
+      };
+    }
+
+    // ── clinics ───────────────────────────────────────────
+    if (table === "clinics") {
+      return {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi
+          .fn()
+          .mockResolvedValue({
+            data: { min_therapists: minTherapists },
+            error: null,
+          }),
       };
     }
 
