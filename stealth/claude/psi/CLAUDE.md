@@ -61,6 +61,7 @@ Both clients are typed with `Database` from `$lib/supabase/database.types.ts` (g
 ### Database Types
 
 `$lib/supabase/database.types.ts` — generated from the live Supabase schema. Regenerate after any migration with:
+
 ```bash
 # Via MCP or Supabase CLI:
 supabase gen types typescript --project-id fqzvggnwfzhiccgoolhr > src/lib/supabase/database.types.ts
@@ -103,7 +104,7 @@ Kill-switches stored in the `service_switches` table, cached in-memory for 30s. 
 
 ```ts
 const switches = await getServiceSwitches();
-if (!switches.llm) return fail(503, { error: 'LLM disabled' });
+if (!switches.llm) return fail(503, { error: "LLM disabled" });
 ```
 
 ### Data Model & RLS
@@ -165,7 +166,7 @@ Supabase is mocked with a table-aware `from()` dispatcher: each table name retur
 ```ts
 // Typical test structure
 const locals = makeLocals({ therapist: mockTherapist });
-const request = makeRequest({ scheduleId: '123' });
+const request = makeRequest({ scheduleId: "123" });
 const result = await actions.deleteSchedule({ locals, request });
 ```
 
@@ -202,14 +203,14 @@ Public (browser-safe, prefix `PUBLIC_`):
 
 ### Server actions (`+page.server.ts`)
 
-| Action | Description |
-|---|---|
-| `createSchedule` | Insert a recurring slot (Zod-validated, unique constraint guard) |
-| `deleteSchedule` | Soft-delete via `active = false` |
-| `moveSchedule` | Update `day_of_week` + `start_time` on an existing slot (409 on conflict) |
-| `markPaid` | Flip `paid = true` + `paid_at` on a single session |
-| `bulkMarkPaid` | Mark multiple sessions paid in one `UPDATE … WHERE id = ANY(...)` call |
-| `create` | Ad-hoc session insert (not linked to a schedule) |
+| Action           | Description                                                               |
+| ---------------- | ------------------------------------------------------------------------- |
+| `createSchedule` | Insert a recurring slot (Zod-validated, unique constraint guard)          |
+| `deleteSchedule` | Soft-delete via `active = false`                                          |
+| `moveSchedule`   | Update `day_of_week` + `start_time` on an existing slot (409 on conflict) |
+| `markPaid`       | Flip `paid = true` + `paid_at` on a single session                        |
+| `bulkMarkPaid`   | Mark multiple sessions paid in one `UPDATE … WHERE id = ANY(...)` call    |
+| `create`         | Ad-hoc session insert (not linked to a schedule)                          |
 
 ### Client features (`+page.svelte`)
 

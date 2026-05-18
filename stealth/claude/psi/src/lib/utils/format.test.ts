@@ -2,7 +2,12 @@
  * Tests for UI formatting utilities (pt-BR locale).
  */
 import { describe, it, expect } from "vitest";
-import { formatBRL, formatBRLDecimal, formatDateTime, formatPhone } from "./format";
+import {
+  formatBRL,
+  formatBRLDecimal,
+  formatDateTime,
+  formatPhone,
+} from "./format";
 
 // ── formatBRL ────────────────────────────────────────────────────────────────
 

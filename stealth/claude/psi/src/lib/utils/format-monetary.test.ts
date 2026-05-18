@@ -11,7 +11,7 @@ import { formatBRL, formatBRLDecimal } from "./format";
 // ── formatBRL — numeric(15,2) range ──────────────────────────────────────────
 
 describe("formatBRL — numeric(15,2) value range", () => {
-  it('formats a typical decimal value (19.99) with R$ symbol and two decimal places', () => {
+  it("formats a typical decimal value (19.99) with R$ symbol and two decimal places", () => {
     const result = formatBRL(19.99);
     expect(result).toMatch(/R\$/);
     expect(result).toMatch(/19/);

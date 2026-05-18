@@ -8,7 +8,9 @@ const ScheduleSchema = z.object({
   day_of_week: z.coerce.number().int().min(1).max(5),
   start_time: z.string().regex(/^\d{2}:\d{2}$/),
   duration_minutes: z.coerce.number().int().positive().default(50),
-  frequency: z.enum(["weekly", "biweekly", "monthly", "detached"]).default("weekly"),
+  frequency: z
+    .enum(["weekly", "biweekly", "monthly", "detached"])
+    .default("weekly"),
   fee: z.coerce.number().nonnegative().optional(),
 });
 
@@ -230,7 +232,9 @@ export const actions: Actions = {
       schedule_id: z.string().uuid(),
       day_of_week: z.coerce.number().int().min(1).max(5),
       start_time: z.string().regex(/^\d{2}:\d{2}$/),
-      frequency: z.enum(["weekly", "biweekly", "monthly", "detached"]).default("weekly"),
+      frequency: z
+        .enum(["weekly", "biweekly", "monthly", "detached"])
+        .default("weekly"),
     });
     const parsed = MoveSchema.safeParse(Object.fromEntries(fd));
     if (!parsed.success)

@@ -86,9 +86,7 @@ describe("projectMonthlyRevenue — EC-10: negative fee", () => {
   });
 
   it("returns 0 when all active patients have negative fees", () => {
-    const patients = [
-      makePatient({ session_fee: -500, active: true }),
-    ];
+    const patients = [makePatient({ session_fee: -500, active: true })];
     expect(projectMonthlyRevenue(patients)).toBe(0);
   });
 });
@@ -155,11 +153,7 @@ describe("projectMonthlyRevenue", () => {
   });
 
   it("treats null session_fee as 0", () => {
-    expect(
-      projectMonthlyRevenue([
-        makePatient({ session_fee: null }),
-      ]),
-    ).toBe(0);
+    expect(projectMonthlyRevenue([makePatient({ session_fee: null })])).toBe(0);
   });
 });
 

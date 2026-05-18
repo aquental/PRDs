@@ -384,7 +384,7 @@ export const actions: Actions = {
         address: strOrNull(fd, "address"),
         birth_date: strOrNull(fd, "birth_date"),
         session_fee: numOrNull(fd, "session_fee"),
-          frequency: strOrNull(fd, "frequency"),
+        frequency: strOrNull(fd, "frequency"),
         active: bool(fd, "active"),
       })
       .eq("id", id);

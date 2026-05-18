@@ -32,9 +32,7 @@ describe("20260516165347_widen_monetary_columns.sql — structure", () => {
 
   it("does not reference numeric(10,2) (old type must not appear in up migration)", () => {
     // The old type should only appear in comments, never in ALTER statements
-    const alterLines = sql
-      .split("\n")
-      .filter((l) => /ALTER COLUMN/i.test(l));
+    const alterLines = sql.split("\n").filter((l) => /ALTER COLUMN/i.test(l));
     for (const line of alterLines) {
       expect(line).not.toMatch(/numeric\(10,2\)/i);
     }
@@ -64,9 +62,7 @@ describe("20260516165347_widen_monetary_columns.sql — target tables", () => {
 
   it("does NOT alter ai_usage_logs.cost_usd (intentional numeric(12,6))", () => {
     // The table name may appear in comments; assert no ALTER TABLE targets it.
-    const alterLines = sql
-      .split("\n")
-      .filter((l) => /ALTER TABLE/i.test(l));
+    const alterLines = sql.split("\n").filter((l) => /ALTER TABLE/i.test(l));
     for (const line of alterLines) {
       expect(line).not.toMatch(/ai_usage_logs/i);
       expect(line).not.toMatch(/cost_usd/i);

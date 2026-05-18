@@ -60,7 +60,9 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
   windowEnd.setUTCDate(windowEnd.getUTCDate() + 1);
 
   // Current week bounds (Sun–Sat) for cashflow and bills
-  const localDow = new Date(now.toLocaleString("en-US", { timeZone: tz })).getDay();
+  const localDow = new Date(
+    now.toLocaleString("en-US", { timeZone: tz }),
+  ).getDay();
   const weekStartDate = new Date(now);
   weekStartDate.setDate(weekStartDate.getDate() - localDow);
   const weekEndDate = new Date(now);
@@ -90,7 +92,9 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
     // Active expenses for bills card
     locals.supabase
       .from("expenses")
-      .select("id, description, amount, frequency, due_day, due_date, month, color")
+      .select(
+        "id, description, amount, frequency, due_day, due_date, month, color",
+      )
       .eq("clinic_id", therapist.clinic_id)
       .eq("is_active", true),
 
@@ -254,7 +258,12 @@ export const actions: Actions = {
 
     const { month_year } = parsed.data;
     const now = new Date().toISOString();
-    const logEntry = { action: "closed", at: now, by_name: therapist.name, role: "therapist" };
+    const logEntry = {
+      action: "closed",
+      at: now,
+      by_name: therapist.name,
+      role: "therapist",
+    };
 
     const { data: existing } = await locals.supabase
       .from("month_closures")
@@ -263,20 +272,18 @@ export const actions: Actions = {
       .eq("month_year", month_year)
       .maybeSingle();
 
-    const { error: err } = await locals.supabase
-      .from("month_closures")
-      .upsert(
-        {
-          clinic_id: therapist.clinic_id,
-          therapist_id: therapist.id,
-          month_year,
-          status: "closed",
-          closed_at: now,
-          closed_by: therapist.id,
-          log: [...((existing?.log as unknown[]) ?? []), logEntry],
-        },
-        { onConflict: "clinic_id,therapist_id,month_year" },
-      );
+    const { error: err } = await locals.supabase.from("month_closures").upsert(
+      {
+        clinic_id: therapist.clinic_id,
+        therapist_id: therapist.id,
+        month_year,
+        status: "closed",
+        closed_at: now,
+        closed_by: therapist.id,
+        log: [...((existing?.log as unknown[]) ?? []), logEntry],
+      },
+      { onConflict: "clinic_id,therapist_id,month_year" },
+    );
 
     if (err) return fail(400, { error: err.message });
     await invalidateDashboard(therapist.id);
@@ -311,7 +318,12 @@ export const actions: Actions = {
     if (!closure) return fail(404, { error: "Fechamento não encontrado" });
 
     const now = new Date().toISOString();
-    const logEntry = { action: "reopened", at: now, by_name: therapist.name, role: "therapist" };
+    const logEntry = {
+      action: "reopened",
+      at: now,
+      by_name: therapist.name,
+      role: "therapist",
+    };
 
     const { error: err } = await locals.supabase
       .from("month_closures")

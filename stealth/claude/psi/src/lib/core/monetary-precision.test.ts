@@ -75,7 +75,10 @@ const makeSession = (overrides: Partial<Session> = {}): Session => ({
 describe("projectMonthlyRevenue — numeric(15,2) value range", () => {
   it("handles a typical decimal fee (19.99)", () => {
     const patients = [makePatient({ session_fee: 19.99 })];
-    expect(projectMonthlyRevenue(patients)).toBeCloseTo(19.99 * SESSIONS_PER_MONTH, 5);
+    expect(projectMonthlyRevenue(patients)).toBeCloseTo(
+      19.99 * SESSIONS_PER_MONTH,
+      5,
+    );
   });
 
   it("returns 0 for zero fee", () => {
@@ -86,7 +89,10 @@ describe("projectMonthlyRevenue — numeric(15,2) value range", () => {
   it("handles a large fee value within numeric(15,2) range (9999999.99)", () => {
     const fee = 9_999_999.99;
     const patients = [makePatient({ session_fee: fee })];
-    expect(projectMonthlyRevenue(patients)).toBeCloseTo(fee * SESSIONS_PER_MONTH, 2);
+    expect(projectMonthlyRevenue(patients)).toBeCloseTo(
+      fee * SESSIONS_PER_MONTH,
+      2,
+    );
   });
 
   it("handles a fee that exceeds old numeric(10,2) max (100_000_000.00)", () => {
@@ -114,7 +120,10 @@ describe("projectMonthlyRevenue — numeric(15,2) value range", () => {
 describe("actualRevenue — numeric(15,2) value range", () => {
   it("sums typical decimal amounts (19.99)", () => {
     const entries = [makeEntry({ amount: 19.99, type: "revenue" })];
-    expect(actualRevenue(entries, "2024-01-01", "2024-01-31")).toBeCloseTo(19.99, 5);
+    expect(actualRevenue(entries, "2024-01-01", "2024-01-31")).toBeCloseTo(
+      19.99,
+      5,
+    );
   });
 
   it("returns 0 with no entries", () => {
@@ -123,12 +132,17 @@ describe("actualRevenue — numeric(15,2) value range", () => {
 
   it("handles a large amount (9999999.99)", () => {
     const entries = [makeEntry({ amount: 9_999_999.99, type: "revenue" })];
-    expect(actualRevenue(entries, "2024-01-01", "2024-01-31")).toBeCloseTo(9_999_999.99, 2);
+    expect(actualRevenue(entries, "2024-01-01", "2024-01-31")).toBeCloseTo(
+      9_999_999.99,
+      2,
+    );
   });
 
   it("handles an amount that exceeds old numeric(10,2) max", () => {
     const entries = [makeEntry({ amount: 100_000_000.0, type: "revenue" })];
-    expect(actualRevenue(entries, "2024-01-01", "2024-01-31")).toBe(100_000_000.0);
+    expect(actualRevenue(entries, "2024-01-01", "2024-01-31")).toBe(
+      100_000_000.0,
+    );
   });
 
   it("ignores expense entries in revenue sum", () => {
@@ -140,9 +154,9 @@ describe("actualRevenue — numeric(15,2) value range", () => {
   });
 
   it("throws RangeError when from > to", () => {
-    expect(() =>
-      actualRevenue([], "2024-02-01", "2024-01-01"),
-    ).toThrow(RangeError);
+    expect(() => actualRevenue([], "2024-02-01", "2024-01-01")).toThrow(
+      RangeError,
+    );
   });
 });
 
@@ -151,7 +165,10 @@ describe("actualRevenue — numeric(15,2) value range", () => {
 describe("totalExpenses — numeric(15,2) value range", () => {
   it("sums decimal amounts (19.99)", () => {
     const entries = [makeEntry({ amount: 19.99, type: "expense" })];
-    expect(totalExpenses(entries, "2024-01-01", "2024-01-31")).toBeCloseTo(19.99, 5);
+    expect(totalExpenses(entries, "2024-01-01", "2024-01-31")).toBeCloseTo(
+      19.99,
+      5,
+    );
   });
 
   it("returns 0 with zero amount", () => {
@@ -161,7 +178,10 @@ describe("totalExpenses — numeric(15,2) value range", () => {
 
   it("handles large expense amount (9999999.99)", () => {
     const entries = [makeEntry({ amount: 9_999_999.99, type: "expense" })];
-    expect(totalExpenses(entries, "2024-01-01", "2024-01-31")).toBeCloseTo(9_999_999.99, 2);
+    expect(totalExpenses(entries, "2024-01-01", "2024-01-31")).toBeCloseTo(
+      9_999_999.99,
+      2,
+    );
   });
 });
 
@@ -180,15 +200,17 @@ describe("expensesForPeriod — numeric(15,2) value range", () => {
   });
 
   it("handles large monthly expense (9999999.99)", () => {
-    const expenses = [makeExpense({ amount: 9_999_999.99, frequency: "monthly" })];
+    const expenses = [
+      makeExpense({ amount: 9_999_999.99, frequency: "monthly" }),
+    ];
     const result = expensesForPeriod(expenses, "2024-01-01", "2024-01-31");
     expect(result).toBeCloseTo(9_999_999.99, 2);
   });
 
   it("throws RangeError when from > to", () => {
-    expect(() =>
-      expensesForPeriod([], "2024-02-01", "2024-01-01"),
-    ).toThrow(RangeError);
+    expect(() => expensesForPeriod([], "2024-02-01", "2024-01-01")).toThrow(
+      RangeError,
+    );
   });
 });
 
@@ -196,27 +218,37 @@ describe("expensesForPeriod — numeric(15,2) value range", () => {
 
 describe("outstandingRevenue — numeric(15,2) value range", () => {
   it("sums unpaid completed sessions (19.99)", () => {
-    const sessions = [makeSession({ fee: 19.99, paid: false, status: "completed" })];
+    const sessions = [
+      makeSession({ fee: 19.99, paid: false, status: "completed" }),
+    ];
     expect(outstandingRevenue(sessions)).toBeCloseTo(19.99, 5);
   });
 
   it("returns 0 when all sessions are paid", () => {
-    const sessions = [makeSession({ fee: 250, paid: true, status: "completed" })];
+    const sessions = [
+      makeSession({ fee: 250, paid: true, status: "completed" }),
+    ];
     expect(outstandingRevenue(sessions)).toBe(0);
   });
 
   it("returns 0 when fee is null", () => {
-    const sessions = [makeSession({ fee: null, paid: false, status: "completed" })];
+    const sessions = [
+      makeSession({ fee: null, paid: false, status: "completed" }),
+    ];
     expect(outstandingRevenue(sessions)).toBe(0);
   });
 
   it("handles large unpaid fee (9999999.99)", () => {
-    const sessions = [makeSession({ fee: 9_999_999.99, paid: false, status: "completed" })];
+    const sessions = [
+      makeSession({ fee: 9_999_999.99, paid: false, status: "completed" }),
+    ];
     expect(outstandingRevenue(sessions)).toBeCloseTo(9_999_999.99, 2);
   });
 
   it("excludes scheduled (not completed) sessions", () => {
-    const sessions = [makeSession({ fee: 500, paid: false, status: "scheduled" })];
+    const sessions = [
+      makeSession({ fee: 500, paid: false, status: "scheduled" }),
+    ];
     expect(outstandingRevenue(sessions)).toBe(0);
   });
 });
@@ -232,7 +264,10 @@ describe("periodProfit — numeric(15,2) value range", () => {
       makeEntry({ id: "e1", amount: 1000, type: "revenue" }),
       makeEntry({ id: "e2", amount: 300, type: "expense" }),
     ];
-    expect(periodProfit(entries, [], "2024-01-01", "2024-01-31")).toBeCloseTo(700, 5);
+    expect(periodProfit(entries, [], "2024-01-01", "2024-01-31")).toBeCloseTo(
+      700,
+      5,
+    );
   });
 
   it("returns negative profit when expenses exceed revenue", () => {
@@ -240,7 +275,10 @@ describe("periodProfit — numeric(15,2) value range", () => {
       makeEntry({ id: "e1", amount: 100, type: "revenue" }),
       makeEntry({ id: "e2", amount: 500, type: "expense" }),
     ];
-    expect(periodProfit(entries, [], "2024-01-01", "2024-01-31")).toBeCloseTo(-400, 5);
+    expect(periodProfit(entries, [], "2024-01-01", "2024-01-31")).toBeCloseTo(
+      -400,
+      5,
+    );
   });
 
   it("handles large values (9999999.99 revenue, 1.00 recurring expense)", () => {

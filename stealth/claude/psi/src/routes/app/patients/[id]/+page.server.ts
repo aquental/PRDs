@@ -33,7 +33,12 @@ const RelativeSchema = z.object({
 });
 
 const CancellationOverrideSchema = z.object({
-  cancellation_policy: z.enum(["default", "sempre_abona", "sempre_cobra", "janela_custom"]),
+  cancellation_policy: z.enum([
+    "default",
+    "sempre_abona",
+    "sempre_cobra",
+    "janela_custom",
+  ]),
   cancellation_window_hours: z.preprocess(
     (v) => (v === "" ? null : v),
     z.coerce.number().int().min(0).max(168).nullable().optional(),

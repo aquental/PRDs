@@ -109,7 +109,9 @@ describe("create", () => {
     expect(isActionFailure(result)).toBe(true);
     if (isActionFailure(result)) {
       expect(result.status).toBe(400);
-      const error = (result.data as unknown as { error: Record<string, unknown> }).error;
+      const error = (
+        result.data as unknown as { error: Record<string, unknown> }
+      ).error;
       expect(error).toHaveProperty("name");
     }
   });
@@ -125,7 +127,9 @@ describe("create", () => {
     expect(isActionFailure(result)).toBe(true);
     if (isActionFailure(result)) {
       expect(result.status).toBe(400);
-      const error = (result.data as unknown as { error: Record<string, unknown> }).error;
+      const error = (
+        result.data as unknown as { error: Record<string, unknown> }
+      ).error;
       expect(error).toHaveProperty("email");
     }
   });
@@ -140,7 +144,9 @@ describe("create", () => {
     expect(isActionFailure(result)).toBe(true);
     if (isActionFailure(result)) {
       expect(result.status).toBe(400);
-      const error = (result.data as unknown as { error: Record<string, unknown> }).error;
+      const error = (
+        result.data as unknown as { error: Record<string, unknown> }
+      ).error;
       expect(error).toHaveProperty("email");
     }
   });
@@ -155,7 +161,9 @@ describe("create", () => {
     expect(isActionFailure(result)).toBe(true);
     if (isActionFailure(result)) {
       expect(result.status).toBe(400);
-      const error = (result.data as unknown as { error: Record<string, unknown> }).error;
+      const error = (
+        result.data as unknown as { error: Record<string, unknown> }
+      ).error;
       expect(error).toHaveProperty("email");
     }
   });
@@ -170,7 +178,9 @@ describe("create", () => {
     expect(isActionFailure(result)).toBe(true);
     if (isActionFailure(result)) {
       expect(result.status).toBe(400);
-      const error = (result.data as unknown as { error: Record<string, unknown> }).error;
+      const error = (
+        result.data as unknown as { error: Record<string, unknown> }
+      ).error;
       expect(error).toHaveProperty("name");
       expect(error).toHaveProperty("email");
     }
@@ -186,7 +196,9 @@ describe("create", () => {
     expect(isActionFailure(result)).toBe(true);
     if (isActionFailure(result)) {
       expect(result.status).toBe(400);
-      const error = (result.data as unknown as { error: Record<string, unknown> }).error;
+      const error = (
+        result.data as unknown as { error: Record<string, unknown> }
+      ).error;
       expect(error).toHaveProperty("email");
     }
   });
@@ -201,7 +213,9 @@ describe("create", () => {
     expect(isActionFailure(result)).toBe(true);
     if (isActionFailure(result)) {
       expect(result.status).toBe(400);
-      const error = (result.data as unknown as { error: Record<string, unknown> }).error;
+      const error = (
+        result.data as unknown as { error: Record<string, unknown> }
+      ).error;
       expect(error).toHaveProperty("_");
     }
   });
