@@ -40,6 +40,36 @@ export function formatCPF(digits: string): string {
   return `${padded.slice(0, 3)}.${padded.slice(3, 6)}.${padded.slice(6, 9)}-${padded.slice(9, 11)}`;
 }
 
+/** Retorna true se o CPF for matematicamente válido (qualquer formato). */
+export function isValidCPF(cpf: string): boolean {
+  return normalizeCPF(cpf) !== null;
+}
+
+/**
+ * Gera um CPF válido aleatório (apenas dígitos, 11 caracteres).
+ * Útil em fixtures de teste — nunca use em produção.
+ */
+export function generateValidCPF(): string {
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const base = Array.from({ length: 9 }, () =>
+      Math.floor(Math.random() * 10),
+    );
+
+    let sum = base.reduce((acc, d, i) => acc + d * (10 - i), 0);
+    let d1 = (sum * 10) % 11;
+    if (d1 === 10) d1 = 0;
+
+    sum = [...base, d1].reduce((acc, d, i) => acc + d * (11 - i), 0);
+    let d2 = (sum * 10) % 11;
+    if (d2 === 10) d2 = 0;
+
+    const result = [...base, d1, d2].join("");
+    // Reject all-same-digit sequences (normalizeCPF also rejects them)
+    if (!/^(\d)\1{10}$/.test(result)) return result;
+  }
+}
+
 /** Normaliza telefone BR para dígitos apenas. */
 export function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, "");

@@ -1,4 +1,5 @@
 import js from "@eslint/js";
+import globals from "globals";
 
 /**
  * ESLint v9 flat config.
@@ -31,5 +32,10 @@ export default [
   {
     ...js.configs.recommended,
     files: ["**/*.js", "**/*.mjs", "**/*.cjs"],
+  },
+  // ── Node.js scripts ───────────────────────────────────────────────────────
+  {
+    files: ["scripts/**/*.js"],
+    languageOptions: { globals: globals.node },
   },
 ];

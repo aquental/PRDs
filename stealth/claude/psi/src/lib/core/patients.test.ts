@@ -5,6 +5,8 @@ import { describe, it, expect } from "vitest";
 import {
   normalizeCPF,
   formatCPF,
+  isValidCPF,
+  generateValidCPF,
   normalizePhone,
   validateRelative,
   ageFromBirthDate,
@@ -71,6 +73,65 @@ describe("formatCPF", () => {
 
   it("does NOT throw for exactly 11 digits", () => {
     expect(() => formatCPF("11144477735")).not.toThrow();
+  });
+});
+
+// ── isValidCPF ───────────────────────────────────────────────────────────────
+
+describe("isValidCPF", () => {
+  it("returns true for a mathematically valid CPF (formatted)", () => {
+    expect(isValidCPF("111.444.777-35")).toBe(true);
+  });
+
+  it("returns true for a valid CPF without punctuation", () => {
+    expect(isValidCPF("11144477735")).toBe(true);
+  });
+
+  it("returns false for an all-same-digit CPF", () => {
+    expect(isValidCPF("111.111.111-11")).toBe(false);
+    expect(isValidCPF("00000000000")).toBe(false);
+  });
+
+  it("returns false for a CPF with wrong check digits", () => {
+    expect(isValidCPF("11144477700")).toBe(false);
+  });
+
+  it("returns false for a CPF with wrong length", () => {
+    expect(isValidCPF("123.456")).toBe(false);
+    expect(isValidCPF("")).toBe(false);
+  });
+});
+
+// ── generateValidCPF ─────────────────────────────────────────────────────────
+
+describe("generateValidCPF", () => {
+  it("returns an 11-digit string", () => {
+    expect(generateValidCPF()).toHaveLength(11);
+    expect(generateValidCPF()).toMatch(/^\d{11}$/);
+  });
+
+  it("generated CPF passes normalizeCPF validation", () => {
+    for (let i = 0; i < 20; i++) {
+      const cpf = generateValidCPF();
+      expect(normalizeCPF(cpf)).toBe(cpf);
+    }
+  });
+
+  it("generated CPF passes isValidCPF", () => {
+    for (let i = 0; i < 20; i++) {
+      expect(isValidCPF(generateValidCPF())).toBe(true);
+    }
+  });
+
+  it("generated CPF can be formatted by formatCPF without throwing", () => {
+    expect(() => formatCPF(generateValidCPF())).not.toThrow();
+  });
+
+  it("produces different CPFs across calls (not constant)", () => {
+    const results = new Set(
+      Array.from({ length: 50 }, () => generateValidCPF()),
+    );
+    expect(results.size).toBeGreaterThan(1);
   });
 });
 
