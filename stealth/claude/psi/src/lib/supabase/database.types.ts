@@ -193,10 +193,13 @@ export type Database = {
           address_state: string | null
           address_street: string | null
           address_zip: string | null
+          cancellation_window_hours: number
           cnpj: string | null
           created_at: string
           id: string
           name: string
+          repasse_fixo: number
+          repasse_percentual: number
           timezone: string
           updated_at: string
           working_hours_end: number
@@ -210,10 +213,13 @@ export type Database = {
           address_state?: string | null
           address_street?: string | null
           address_zip?: string | null
+          cancellation_window_hours?: number
           cnpj?: string | null
           created_at?: string
           id?: string
           name: string
+          repasse_fixo?: number
+          repasse_percentual?: number
           timezone?: string
           updated_at?: string
           working_hours_end?: number
@@ -227,10 +233,13 @@ export type Database = {
           address_state?: string | null
           address_street?: string | null
           address_zip?: string | null
+          cancellation_window_hours?: number
           cnpj?: string | null
           created_at?: string
           id?: string
           name?: string
+          repasse_fixo?: number
+          repasse_percentual?: number
           timezone?: string
           updated_at?: string
           working_hours_end?: number
@@ -342,6 +351,66 @@ export type Database = {
           },
           {
             foreignKeyName: "finance_entries_therapist_id_fkey"
+            columns: ["therapist_id"]
+            isOneToOne: false
+            referencedRelation: "therapists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      month_closures: {
+        Row: {
+          clinic_id: string
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          id: string
+          log: Json
+          month_year: string
+          reopened_at: string | null
+          reopened_by: string | null
+          status: string
+          therapist_id: string
+          updated_at: string
+        }
+        Insert: {
+          clinic_id: string
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          log?: Json
+          month_year: string
+          reopened_at?: string | null
+          reopened_by?: string | null
+          status?: string
+          therapist_id: string
+          updated_at?: string
+        }
+        Update: {
+          clinic_id?: string
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          log?: Json
+          month_year?: string
+          reopened_at?: string | null
+          reopened_by?: string | null
+          status?: string
+          therapist_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "month_closures_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "month_closures_therapist_id_fkey"
             columns: ["therapist_id"]
             isOneToOne: false
             referencedRelation: "therapists"
@@ -475,6 +544,8 @@ export type Database = {
           active: boolean
           address: string | null
           birth_date: string | null
+          cancellation_policy: string
+          cancellation_window_hours: number | null
           clinic_id: string
           created_at: string
           email: string
@@ -491,6 +562,8 @@ export type Database = {
           active?: boolean
           address?: string | null
           birth_date?: string | null
+          cancellation_policy?: string
+          cancellation_window_hours?: number | null
           clinic_id: string
           created_at?: string
           email: string
@@ -507,6 +580,8 @@ export type Database = {
           active?: boolean
           address?: string | null
           birth_date?: string | null
+          cancellation_policy?: string
+          cancellation_window_hours?: number | null
           clinic_id?: string
           created_at?: string
           email?: string
@@ -623,6 +698,7 @@ export type Database = {
       }
       sessions: {
         Row: {
+          cancelled_at: string | null
           clinic_id: string
           created_at: string
           duration_minutes: number
@@ -638,6 +714,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cancelled_at?: string | null
           clinic_id: string
           created_at?: string
           duration_minutes?: number
@@ -653,6 +730,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cancelled_at?: string | null
           clinic_id?: string
           created_at?: string
           duration_minutes?: number

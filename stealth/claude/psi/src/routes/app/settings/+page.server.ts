@@ -23,6 +23,12 @@ const ClinicSchema = z.object({
   address_state: z.string().optional(),
   working_hours_start: z.coerce.number().int().min(0).max(23).default(7),
   working_hours_end: z.coerce.number().int().min(1).max(24).default(21),
+  repasse_fixo: z.coerce.number().nonnegative().default(0),
+  repasse_percentual: z.coerce.number().nonnegative().max(100).default(0),
+});
+
+const CancellationPolicySchema = z.object({
+  cancellation_window_hours: z.coerce.number().int().min(0).max(168).default(24),
 });
 
 const TemplateSchema = z.object({
@@ -70,14 +76,14 @@ export const load: PageServerLoad = async ({ locals }) => {
   const { data: clinic } = await locals.supabase
     .from("clinics")
     .select(
-      "name, timezone, cnpj, address_street, address_number, address_complement, address_zip, address_city, address_state, working_hours_start, working_hours_end",
+      "name, timezone, cnpj, address_street, address_number, address_complement, address_zip, address_city, address_state, working_hours_start, working_hours_end, cancellation_window_hours, repasse_fixo, repasse_percentual",
     )
     .eq("id", therapist.clinic_id)
     .single();
 
   if (!clinic) throw error(404, "Clínica não encontrada");
 
-  const [{ data: expenses }, { data: templates }, { data: patients }] = await Promise.all([
+  const [{ data: expenses }, { data: templates }, { data: patients }, { count: therapistCount }] = await Promise.all([
     locals.supabase
       .from("expenses")
       .select(
@@ -99,11 +105,16 @@ export const load: PageServerLoad = async ({ locals }) => {
       .eq("therapist_id", therapist.id)
       .eq("active", true)
       .order("name"),
+    locals.supabase
+      .from("therapists")
+      .select("id", { count: "exact", head: true })
+      .eq("clinic_id", therapist.clinic_id),
   ]);
 
   const { cep: cepEnabled } = await getServiceSwitches();
+  const isClinicMode = (therapistCount ?? 0) > 1;
 
-  return { therapist, clinic, expenses: expenses ?? [], templates: templates ?? [], patients: patients ?? [], cepEnabled };
+  return { therapist, clinic, expenses: expenses ?? [], templates: templates ?? [], patients: patients ?? [], cepEnabled, isClinicMode };
 };
 
 export const actions: Actions = {
@@ -164,11 +175,39 @@ export const actions: Actions = {
         address_state: d.address_state || null,
         working_hours_start: d.working_hours_start,
         working_hours_end: d.working_hours_end,
+        repasse_fixo: d.repasse_fixo,
+        repasse_percentual: d.repasse_percentual,
       })
       .eq("id", therapist.clinic_id);
 
     if (err) return fail(400, { error: err.message });
     return { success: "clinic" };
+  },
+
+  updateCancellationPolicy: async ({ request, locals }) => {
+    const { user } = await locals.safeGetSession();
+    if (!user) return fail(401, { error: "Não autenticado" });
+
+    const { data: therapist } = await locals.supabase
+      .from("therapists")
+      .select("clinic_id")
+      .eq("user_id", user.id)
+      .single();
+    if (!therapist) return fail(403, { error: "Sem permissão" });
+
+    const parsed = CancellationPolicySchema.safeParse(
+      Object.fromEntries(await request.formData()),
+    );
+    if (!parsed.success)
+      return fail(400, { error: parsed.error.flatten().fieldErrors });
+
+    const { error: err } = await locals.supabase
+      .from("clinics")
+      .update({ cancellation_window_hours: parsed.data.cancellation_window_hours })
+      .eq("id", therapist.clinic_id);
+
+    if (err) return fail(400, { error: err.message });
+    return { success: "cancellationPolicy" };
   },
 
   createExpense: async ({ request, locals }) => {

@@ -58,6 +58,8 @@
 				session_fee: number | null;
 				active: boolean;
 				google_calendar_attendee_email: string | null;
+				cancellation_policy: string;
+				cancellation_window_hours: number | null;
 			};
 			sessions: Session[];
 			schedules: Schedule[];
@@ -79,8 +81,13 @@
 	let active = $state(untrack(() => data.patient.active));
 
 	// ── Tabs ──────────────────────────────────────────────
-	type Tab = 'address' | 'relatives';
+	type Tab = 'address' | 'relatives' | 'cancelamento';
 	let activeTab = $state<Tab>('address');
+
+	// ── Política de cancelamento (override) ───────────────
+	let cancelPolicy = $state(untrack(() => data.patient.cancellation_policy ?? 'default'));
+	let cancelWindowHours = $state(untrack(() => String(data.patient.cancellation_window_hours ?? 24)));
+	let editingCancelOverride = $state(false);
 
 	// ── Endereço ─────────────────────────────────────────
 	let addrLogradouro = $state(untrack(() => data.address?.logradouro ?? ''));
@@ -376,6 +383,16 @@
 					</span>
 				{/if}
 			</button>
+			<button
+				type="button"
+				onclick={() => (activeTab = 'cancelamento')}
+				class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition
+					{activeTab === 'cancelamento'
+						? 'border-b-2 border-primary text-primary'
+						: 'border-b-2 border-transparent text-ink-muted hover:text-ink dark:hover:text-bg'}"
+			>
+				Cancelamento
+			</button>
 		</div>
 
 		<div class="mt-4">
@@ -554,6 +571,70 @@
 				</div>
 			{/if}
 		</div>
+
+		{#if activeTab === 'cancelamento'}
+			<Card title="Política de cancelamento">
+				{#if editingCancelOverride}
+					<form
+						method="POST"
+						action="?/updateCancellationOverride"
+						use:enhance={() => async ({ update }) => {
+							await update({ reset: false });
+							if (form?.success === 'cancellation_override') editingCancelOverride = false;
+						}}
+						class="space-y-4"
+					>
+						<div class="space-y-1">
+							<label for="cancel-policy" class="label">Regra para este paciente</label>
+							<select id="cancel-policy" name="cancellation_policy" bind:value={cancelPolicy} class="input w-full">
+								<option value="default">Padrão da clínica</option>
+								<option value="sempre_abona">Sempre abona (nunca cobra falta)</option>
+								<option value="sempre_cobra">Sempre cobra (independente de aviso)</option>
+								<option value="janela_custom">Janela customizada</option>
+							</select>
+						</div>
+						{#if cancelPolicy === 'janela_custom'}
+							<div class="space-y-1">
+								<label for="cancel-window" class="label">Janela de antecedência (horas)</label>
+								<input
+									id="cancel-window"
+									name="cancellation_window_hours"
+									type="number"
+									min="0"
+									max="168"
+									bind:value={cancelWindowHours}
+									class="input w-32"
+								/>
+							</div>
+						{/if}
+						<div class="flex gap-2">
+							<Button type="submit">Salvar</Button>
+							<Button type="button" variant="ghost" onclick={() => (editingCancelOverride = false)}>Cancelar</Button>
+						</div>
+					</form>
+				{:else}
+					<div class="flex items-start justify-between">
+						<Button variant="ghost" onclick={() => (editingCancelOverride = true)}>
+							<PencilSimple size={16} /> Editar
+						</Button>
+					</div>
+					<dl class="mt-2 space-y-3 text-sm">
+						<div>
+							<dt class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Regra ativa</dt>
+							<dd class="mt-1 font-medium text-ink dark:text-bg">
+								{#if cancelPolicy === 'sempre_abona'}Sempre abona
+								{:else if cancelPolicy === 'sempre_cobra'}Sempre cobra
+								{:else if cancelPolicy === 'janela_custom'}Janela de {data.patient.cancellation_window_hours ?? 24}h
+								{:else}Padrão da clínica{/if}
+							</dd>
+						</div>
+					</dl>
+					{#if form?.success === 'cancellation_override'}
+						<p class="mt-3 text-sm text-green-600 dark:text-green-400">Política salva.</p>
+					{/if}
+				{/if}
+			</Card>
+		{/if}
 	</div>
 
 	<!-- ── Modal: Enviar mensagem ───────────────────────────── -->

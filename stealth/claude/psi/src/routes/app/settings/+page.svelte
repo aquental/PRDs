@@ -49,7 +49,7 @@
 	}
 	interface PatientOption { id: string; name: string; }
 	interface Props {
-		data: { therapist: Therapist; clinic: Clinic; expenses: Expense[]; templates: Template[]; patients: PatientOption[]; cepEnabled: boolean };
+		data: { therapist: Therapist; clinic: Clinic; expenses: Expense[]; templates: Template[]; patients: PatientOption[]; cepEnabled: boolean; isClinicMode: boolean };
 		form: { error?: unknown; success?: string } | null;
 	}
 	let { data, form }: Props = $props();
@@ -65,7 +65,7 @@
 	}
 
 	// ── Tabs ──────────────────────────────────────────────
-	let activeTab = $state<'perfil' | 'despesas' | 'modelos'>('perfil');
+	let activeTab = $state<'perfil' | 'politica' | 'despesas' | 'modelos'>('perfil');
 
 	// ── Perfil / Clínica ──────────────────────────────────
 	let editingTherapist = $state(false);
@@ -90,6 +90,12 @@
 	let cState = $state(untrack(() => data.clinic.address_state ?? ''));
 	let cHoursStart = $state(untrack(() => String(data.clinic.working_hours_start ?? 7)));
 	let cHoursEnd = $state(untrack(() => String(data.clinic.working_hours_end ?? 21)));
+	let cRepasseFixo = $state(untrack(() => String((data.clinic as { repasse_fixo?: number }).repasse_fixo ?? 0)));
+	let cRepassePercentual = $state(untrack(() => String((data.clinic as { repasse_percentual?: number }).repasse_percentual ?? 0)));
+
+	// ── Política de cancelamento ──────────────────────────
+	let cancelWindowHours = $state(untrack(() => String((data.clinic as { cancellation_window_hours?: number }).cancellation_window_hours ?? 24)));
+	let editingCancelPolicy = $state(false);
 
 	const ALL_HOURS = Array.from({ length: 24 }, (_, i) => i);
 
@@ -484,6 +490,14 @@
 				Perfil & Clínica
 			</button>
 			<button
+				onclick={() => (activeTab = 'politica')}
+				class="border-b-2 px-4 py-2 text-sm font-medium transition-colors {activeTab === 'politica'
+					? 'border-primary text-primary'
+					: 'border-transparent text-ink-muted hover:text-ink dark:hover:text-bg'}"
+			>
+				Política
+			</button>
+			<button
 				onclick={() => (activeTab = 'despesas')}
 				class="border-b-2 px-4 py-2 text-sm font-medium transition-colors {activeTab === 'despesas'
 					? 'border-primary text-primary'
@@ -643,6 +657,25 @@
 						</select>
 					</div>
 
+					{#if data.isClinicMode}
+						<div class="space-y-1 sm:col-span-2">
+							<p class="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Repasse à clínica</p>
+							<div class="grid gap-4 sm:grid-cols-2">
+								<div>
+									<label for="repasse_fixo" class="label">Valor fixo por sessão (R$)</label>
+									<input id="repasse_fixo" name="repasse_fixo" type="number" min="0" step="0.01" bind:value={cRepasseFixo} class="input w-full" />
+								</div>
+								<div>
+									<label for="repasse_percentual" class="label">Percentual por sessão (%)</label>
+									<input id="repasse_percentual" name="repasse_percentual" type="number" min="0" max="100" step="0.01" bind:value={cRepassePercentual} class="input w-full" />
+								</div>
+							</div>
+							{#if Number(cRepasseFixo) === 0 && Number(cRepassePercentual) === 0}
+								<p class="text-xs text-amber-600 dark:text-amber-400">Atenção: com ambos em zero, o repasse será desativado.</p>
+							{/if}
+						</div>
+					{/if}
+
 					<div class="flex justify-end gap-2 sm:col-span-2">
 						<Button variant="ghost" onclick={() => (editingClinic = false)}>Cancelar</Button>
 						<Button type="submit">Salvar</Button>
@@ -709,6 +742,70 @@
 				> e protegidos por Row Level Security. Solicitações de exportação ou exclusão devem ser feitas
 				por e-mail ao responsável pela plataforma.
 			</p>
+		</Card>
+	{/if}
+
+	<!-- ── Aba: Política de cancelamento ── -->
+	{#if activeTab === 'politica'}
+		<Card title="Política de cancelamento">
+			{#if editingCancelPolicy}
+				<form
+					method="POST"
+					action="?/updateCancellationPolicy"
+					use:enhance={() => async ({ update }) => {
+						await update({ reset: false });
+						if (form?.success === 'cancellationPolicy') editingCancelPolicy = false;
+					}}
+					class="space-y-4"
+				>
+					<div class="space-y-1">
+						<label for="cancel-window" class="label">
+							Janela de antecedência (horas)
+						</label>
+						<input
+							id="cancel-window"
+							name="cancellation_window_hours"
+							type="number"
+							min="0"
+							max="168"
+							bind:value={cancelWindowHours}
+							class="input w-32"
+						/>
+						<p class="text-xs text-ink-muted">
+							Cancelamentos com <strong>{cancelWindowHours}h</strong> ou mais de antecedência são registrados como <strong>abono</strong> (sem cobrança). Abaixo dessa janela, como <strong>falta</strong> (valor cobrado). Mínimo: 0h · Máximo: 168h (7 dias).
+						</p>
+					</div>
+					{#if form?.error && form.success !== 'cancellationPolicy'}
+						<p class="text-sm text-red-600">{formatFormError(form.error)}</p>
+					{/if}
+					<div class="flex gap-2">
+						<Button type="submit">Salvar</Button>
+						<Button type="button" variant="ghost" onclick={() => (editingCancelPolicy = false)}>Cancelar</Button>
+					</div>
+				</form>
+			{:else}
+				<div class="flex items-start justify-between">
+					<Button variant="ghost" onclick={() => (editingCancelPolicy = true)}>
+						<PencilSimple size={16} /> Editar
+					</Button>
+				</div>
+				<dl class="mt-2 space-y-3 text-sm">
+					<div>
+						<dt class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Janela de antecedência</dt>
+						<dd class="mt-1 font-medium text-ink dark:text-bg">{cancelWindowHours}h</dd>
+					</div>
+					<div>
+						<dt class="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Efeito</dt>
+						<dd class="mt-1 text-ink-muted">
+							≥ {cancelWindowHours}h antes → <span class="font-medium text-green-700 dark:text-green-400">abono</span> ·
+							&lt; {cancelWindowHours}h antes → <span class="font-medium text-red-700 dark:text-red-400">falta</span>
+						</dd>
+					</div>
+				</dl>
+				{#if form?.success === 'cancellationPolicy'}
+					<p class="mt-3 text-sm text-green-600 dark:text-green-400">Política salva.</p>
+				{/if}
+			{/if}
 		</Card>
 	{/if}
 

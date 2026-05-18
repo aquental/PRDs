@@ -101,6 +101,85 @@ export interface Expense {
   updated_at: string;
 }
 
+// ── Operacional ──────────────────────────────────────────────────────────────
+
+export type PatientCancellationPolicy =
+  | "default"
+  | "sempre_abona"
+  | "sempre_cobra"
+  | "janela_custom";
+
+export interface CancellationPolicy {
+  windowHours: number;
+}
+
+export interface PatientCancellationOverride {
+  policy: PatientCancellationPolicy;
+  windowHours?: number;
+}
+
+export interface RepasseConfig {
+  fixo: number;
+  percentual: number;
+}
+
+export interface RepasseResult {
+  repasse: number;
+  liquido: number;
+  disabled: boolean;
+}
+
+export type PendencyType = "sessao_sem_registro" | "conta_atrasada";
+
+export interface Pendency {
+  type: PendencyType;
+  description: string;
+  id: string;
+}
+
+export interface DuePayment {
+  id: string;
+  description: string;
+  amount: number;
+  dueDate: string;
+  paid: boolean;
+}
+
+export interface OperationalSession {
+  id: string;
+  patientId: string;
+  patientName: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  fee: number;
+  status: SessionStatus;
+  cancelledAt?: string | null;
+  paid: boolean;
+}
+
+export type MonthClosureStatus = "open" | "closed";
+export type MonthClosureRole = "profissional" | "clinica";
+
+export interface MonthClosureLogEntry {
+  action: "closed" | "reopened";
+  at: string;
+  by: string;
+  role: MonthClosureRole;
+}
+
+export interface MonthClosure {
+  id: string;
+  clinicId: string;
+  therapistId: string;
+  monthYear: string;
+  status: MonthClosureStatus;
+  log: MonthClosureLogEntry[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── Templates ─────────────────────────────────────────────────────────────────
+
 export type TemplateCategory = "evolucao" | "relatorio" | "outro";
 export type TemplateMedia = "whatsapp" | "email" | "print";
 

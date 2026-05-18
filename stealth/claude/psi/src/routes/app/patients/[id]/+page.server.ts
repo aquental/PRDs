@@ -32,6 +32,14 @@ const RelativeSchema = z.object({
   endereco: z.string().optional().or(z.literal("")),
 });
 
+const CancellationOverrideSchema = z.object({
+  cancellation_policy: z.enum(["default", "sempre_abona", "sempre_cobra", "janela_custom"]),
+  cancellation_window_hours: z.preprocess(
+    (v) => (v === "" ? null : v),
+    z.coerce.number().int().min(0).max(168).nullable().optional(),
+  ),
+});
+
 async function assertPatientOwnership(
   locals: App.Locals,
   patientId: string,
@@ -257,5 +265,34 @@ export const actions: Actions = {
 
     if (err) return fail(400, { error: err.message });
     return { success: "relative_deleted" };
+  },
+
+  updateCancellationOverride: async ({ request, locals, params }) => {
+    const ownership = await assertPatientOwnership(locals, params.id!);
+    if ("error" in ownership)
+      return fail(ownership.status, { error: ownership.error });
+
+    const parsed = CancellationOverrideSchema.safeParse(
+      Object.fromEntries(await request.formData()),
+    );
+    if (!parsed.success)
+      return fail(400, { error: parsed.error.flatten().fieldErrors });
+
+    const { cancellation_policy, cancellation_window_hours } = parsed.data;
+
+    const { error: err } = await locals.supabase
+      .from("patients")
+      .update({
+        cancellation_policy,
+        cancellation_window_hours:
+          cancellation_policy === "janela_custom"
+            ? (cancellation_window_hours ?? null)
+            : null,
+      })
+      .eq("id", params.id)
+      .eq("therapist_id", ownership.therapistId);
+
+    if (err) return fail(400, { error: err.message });
+    return { success: "cancellation_override" };
   },
 };
