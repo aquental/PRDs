@@ -26,15 +26,40 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
   if (!therapist) throw redirect(303, "/login?error=no_therapist");
 
-  const { data: clinic } = await locals.supabase
-    .from("clinics")
-    .select(
-      "id, name, timezone, cnpj, address_street, address_number, address_complement, address_zip, address_city, address_state, working_hours_start, working_hours_end",
-    )
-    .eq("id", therapist.clinic_id)
-    .single();
+  const now = new Date().toISOString();
 
-  const switches = await getServiceSwitches();
+  const [{ data: clinic }, switches, pendingResult, closedResult] =
+    await Promise.all([
+      locals.supabase
+        .from("clinics")
+        .select(
+          "id, name, timezone, cnpj, address_street, address_number, address_complement, address_zip, address_city, address_state, working_hours_start, working_hours_end",
+        )
+        .eq("id", therapist.clinic_id)
+        .single(),
+      getServiceSwitches(),
+      // Sessões pendentes (attendance_status nulo, não canceladas, já passaram)
+      locals.supabase
+        .from("sessions")
+        .select("scheduled_at")
+        .eq("therapist_id", therapist.id)
+        .neq("status", "cancelled")
+        .is("attendance_status", null)
+        .lt("scheduled_at", now),
+      // Meses já fechados (para excluí-los do badge)
+      locals.supabase
+        .from("month_closures")
+        .select("month_year")
+        .eq("therapist_id", therapist.id)
+        .eq("status", "closed"),
+    ]);
 
-  return { therapist, clinic, switches };
+  const closedMonths = new Set(
+    (closedResult.data ?? []).map((c) => c.month_year),
+  );
+  const pendingCount = (pendingResult.data ?? []).filter(
+    (s) => !closedMonths.has(s.scheduled_at.slice(0, 7)),
+  ).length;
+
+  return { therapist, clinic, switches, pendingCount };
 };

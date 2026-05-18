@@ -8,8 +8,14 @@
 		ChatCircleDots,
 		Briefcase,
 		Gear,
-		SignOut
+		SignOut,
+		ClipboardText
 	} from 'phosphor-svelte';
+
+	interface Props {
+		pendingCount?: number;
+	}
+	let { pendingCount = 0 }: Props = $props();
 
 	const core = [
 		{ href: '/app/dashboard', label: 'Início',      icon: House,          testid: 'nav-dashboard' },
@@ -52,6 +58,27 @@
 
 		<!-- Divisor + Ferramentas -->
 		<div class="my-2 border-t border-primary-100/60 dark:border-white/5"></div>
+
+		<!-- Pendências: apontamentos + futuras notas fiscais e reagendamentos -->
+		<a
+			href="/app/fechamento-mensal"
+			class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors {page.url.pathname.startsWith('/app/fechamento-mensal')
+				? 'bg-primary-50 font-medium text-primary dark:bg-primary-900/40 dark:text-primary-200'
+				: 'text-ink-muted hover:bg-primary-50/60 hover:text-ink dark:hover:bg-white/5 dark:hover:text-bg'}"
+			data-testid="nav-pendencias"
+			aria-current={page.url.pathname.startsWith('/app/fechamento-mensal') ? 'page' : undefined}
+		>
+			<ClipboardText size={17} weight={page.url.pathname.startsWith('/app/fechamento-mensal') ? 'fill' : 'regular'} />
+			<span class="flex-1">Pendências</span>
+			{#if pendingCount > 0}
+				<span
+					class="flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold leading-none text-white"
+					aria-label="{pendingCount} apontamentos pendentes"
+				>
+					{pendingCount > 99 ? '99+' : pendingCount}
+				</span>
+			{/if}
+		</a>
 
 		{#each tools as item}
 			{@const Icon = item.icon}

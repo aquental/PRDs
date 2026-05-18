@@ -8,6 +8,7 @@
 			therapist: { name: string; avatar_url: string | null };
 			clinic: { name: string };
 			switches: { cep: boolean; llm: boolean; tts: boolean; redis: boolean };
+			pendingCount: number;
 		};
 		children: Snippet;
 	}
@@ -35,7 +36,7 @@
 </script>
 
 <div class="flex min-h-screen">
-	<Sidebar />
+	<Sidebar pendingCount={data.pendingCount} />
 
 	<div class="flex-1 flex flex-col">
 		<header
