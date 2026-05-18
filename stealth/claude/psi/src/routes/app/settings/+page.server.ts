@@ -28,7 +28,12 @@ const ClinicSchema = z.object({
 });
 
 const CancellationPolicySchema = z.object({
-  cancellation_window_hours: z.coerce.number().int().min(0).max(168).default(24),
+  cancellation_window_hours: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(168)
+    .default(24),
 });
 
 const TemplateSchema = z.object({
@@ -83,7 +88,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   if (!clinic) throw error(404, "Clínica não encontrada");
 
-  const [{ data: expenses }, { data: templates }, { data: patients }, { count: therapistCount }, { data: monthClosures }] = await Promise.all([
+  const [
+    { data: expenses },
+    { data: templates },
+    { data: patients },
+    { count: therapistCount },
+    { data: monthClosures },
+  ] = await Promise.all([
     locals.supabase
       .from("expenses")
       .select(
@@ -94,7 +105,9 @@ export const load: PageServerLoad = async ({ locals }) => {
       .order("description"),
     locals.supabase
       .from("templates")
-      .select("id, title, category, media, body, patient_id, is_active, created_at, updated_at")
+      .select(
+        "id, title, category, media, body, patient_id, is_active, created_at, updated_at",
+      )
       .eq("clinic_id", therapist.clinic_id)
       .eq("is_active", true)
       .order("category")
@@ -120,7 +133,16 @@ export const load: PageServerLoad = async ({ locals }) => {
   const { cep: cepEnabled } = await getServiceSwitches();
   const isClinicMode = (therapistCount ?? 0) > 1;
 
-  return { therapist, clinic, expenses: expenses ?? [], templates: templates ?? [], patients: patients ?? [], cepEnabled, isClinicMode, monthClosures: monthClosures ?? [] };
+  return {
+    therapist,
+    clinic,
+    expenses: expenses ?? [],
+    templates: templates ?? [],
+    patients: patients ?? [],
+    cepEnabled,
+    isClinicMode,
+    monthClosures: monthClosures ?? [],
+  };
 };
 
 export const actions: Actions = {
@@ -209,7 +231,9 @@ export const actions: Actions = {
 
     const { error: err } = await locals.supabase
       .from("clinics")
-      .update({ cancellation_window_hours: parsed.data.cancellation_window_hours })
+      .update({
+        cancellation_window_hours: parsed.data.cancellation_window_hours,
+      })
       .eq("id", therapist.clinic_id);
 
     if (err) return fail(400, { error: err.message });
@@ -328,8 +352,11 @@ export const actions: Actions = {
       .single();
     if (!therapist) return fail(403, { error: "Sem permissão" });
 
-    const parsed = TemplateSchema.safeParse(Object.fromEntries(await request.formData()));
-    if (!parsed.success) return fail(400, { error: parsed.error.flatten().fieldErrors });
+    const parsed = TemplateSchema.safeParse(
+      Object.fromEntries(await request.formData()),
+    );
+    if (!parsed.success)
+      return fail(400, { error: parsed.error.flatten().fieldErrors });
 
     const { error: err } = await locals.supabase.from("templates").insert({
       clinic_id: therapist.clinic_id,
@@ -361,11 +388,18 @@ export const actions: Actions = {
     if (!id) return fail(400, { error: "ID inválido" });
 
     const parsed = TemplateSchema.safeParse(Object.fromEntries(formData));
-    if (!parsed.success) return fail(400, { error: parsed.error.flatten().fieldErrors });
+    if (!parsed.success)
+      return fail(400, { error: parsed.error.flatten().fieldErrors });
 
     const { error: err } = await locals.supabase
       .from("templates")
-      .update({ title: parsed.data.title, category: parsed.data.category, media: parsed.data.media, body: parsed.data.body, patient_id: parsed.data.patient_id ?? null })
+      .update({
+        title: parsed.data.title,
+        category: parsed.data.category,
+        media: parsed.data.media,
+        body: parsed.data.body,
+        patient_id: parsed.data.patient_id ?? null,
+      })
       .eq("id", id)
       .eq("clinic_id", therapist.clinic_id);
 

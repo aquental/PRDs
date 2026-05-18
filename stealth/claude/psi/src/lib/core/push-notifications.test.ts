@@ -19,10 +19,14 @@ function spDate(isoDate: string, localHour: number): Date {
   const base = new Date(`${isoDate}T00:00:00`);
   // Brazil is UTC-3 (no DST in winter). The offset is baked in via the date string.
   // Easier: use a fixed UTC offset string.
-  return new Date(`${isoDate}T${String(localHour).padStart(2, "0")}:00:00-03:00`);
+  return new Date(
+    `${isoDate}T${String(localHour).padStart(2, "0")}:00:00-03:00`,
+  );
 }
 
-function makeSession(overrides: Partial<OperationalSession> = {}): OperationalSession {
+function makeSession(
+  overrides: Partial<OperationalSession> = {},
+): OperationalSession {
   return {
     id: "s1",
     patientId: "p1",
@@ -55,7 +59,12 @@ function makeClosure(overrides: Partial<MonthClosure> = {}): MonthClosure {
     monthYear: "2026-04",
     status: "closed",
     log: [
-      { action: "closed", at: "2026-05-01T10:00:00Z", by: "Ana Terapeuta", role: "profissional" },
+      {
+        action: "closed",
+        at: "2026-05-01T10:00:00Z",
+        by: "Ana Terapeuta",
+        role: "profissional",
+      },
     ],
     createdAt: "2026-05-01T10:00:00Z",
     updatedAt: "2026-05-01T10:00:00Z",
@@ -79,12 +88,16 @@ describe("generateUnregisteredSessionsPush", () => {
 
   it("returns null before 18h (quiet day)", () => {
     const now = spDate("2026-05-17", 17);
-    expect(generateUnregisteredSessionsPush(now, [makeSession()], TZ)).toBeNull();
+    expect(
+      generateUnregisteredSessionsPush(now, [makeSession()], TZ),
+    ).toBeNull();
   });
 
   it("returns null at 20h (exclusive upper bound)", () => {
     const now = spDate("2026-05-17", 20);
-    expect(generateUnregisteredSessionsPush(now, [makeSession()], TZ)).toBeNull();
+    expect(
+      generateUnregisteredSessionsPush(now, [makeSession()], TZ),
+    ).toBeNull();
   });
 
   it("returns null when all sessions are registered", () => {
@@ -143,7 +156,9 @@ describe("generateDuePaymentsPush", () => {
 
   it("returns null when all payments are paid", () => {
     const now = spDate("2026-05-17", 8);
-    expect(generateDuePaymentsPush(now, [makePayment({ paid: true })], TZ)).toBeNull();
+    expect(
+      generateDuePaymentsPush(now, [makePayment({ paid: true })], TZ),
+    ).toBeNull();
   });
 
   it("returns null on a quiet day (no due/overdue payments)", () => {
@@ -229,7 +244,11 @@ describe("generateMonthReopenedPush", () => {
 
   it("returns payload when closure is currently closed", () => {
     const closure = makeClosure();
-    const result = generateMonthReopenedPush(closure, reopenEntry, "Clínica Crescer");
+    const result = generateMonthReopenedPush(
+      closure,
+      reopenEntry,
+      "Clínica Crescer",
+    );
     expect(result).not.toBeNull();
     expect(result?.trigger).toBe("month_reopened");
     expect(result?.body).toContain("Ana Terapeuta");
@@ -239,7 +258,9 @@ describe("generateMonthReopenedPush", () => {
 
   it("returns null when closure is already open (no double-fire)", () => {
     const closure = makeClosure({ status: "open" });
-    expect(generateMonthReopenedPush(closure, reopenEntry, "Clínica")).toBeNull();
+    expect(
+      generateMonthReopenedPush(closure, reopenEntry, "Clínica"),
+    ).toBeNull();
   });
 
   it("encodes monthYear and role in data payload", () => {

@@ -14,7 +14,13 @@ import type {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function localHour(now: Date, tz: string): number {
-  return Number(now.toLocaleString("en-US", { timeZone: tz, hour: "numeric", hour12: false }));
+  return Number(
+    now.toLocaleString("en-US", {
+      timeZone: tz,
+      hour: "numeric",
+      hour12: false,
+    }),
+  );
 }
 
 function todayStr(now: Date, tz: string): string {
@@ -43,8 +49,7 @@ export function generateUnregisteredSessionsPush(
 
   const today = todayStr(now, tz);
   const unregistered = sessions.filter(
-    (s) =>
-      s.scheduledAt.startsWith(today) && s.status === "scheduled",
+    (s) => s.scheduledAt.startsWith(today) && s.status === "scheduled",
   );
 
   if (unregistered.length === 0) return null;
@@ -88,7 +93,8 @@ export function generateDuePaymentsPush(
 
   const first = due[0];
   const extra = due.length - 1;
-  const extraStr = extra > 0 ? ` e mais ${extra} conta${extra !== 1 ? "s" : ""}.` : ".";
+  const extraStr =
+    extra > 0 ? ` e mais ${extra} conta${extra !== 1 ? "s" : ""}.` : ".";
   const body = `${first.description} vence hoje (R$ ${first.amount.toFixed(2).replace(".", ",")})${extraStr}`;
 
   return {
@@ -97,7 +103,10 @@ export function generateDuePaymentsPush(
     body,
     url: "/app/operations",
     scheduledFor: now.toISOString(),
-    data: { count: due.length, totalAmount: due.reduce((s, p) => s + p.amount, 0) },
+    data: {
+      count: due.length,
+      totalAmount: due.reduce((s, p) => s + p.amount, 0),
+    },
   };
 }
 
@@ -124,8 +133,18 @@ export function generateMonthCloseReminderPush(
   const prevMonth = mo === 1 ? 12 : mo - 1;
   const prevYear = mo === 1 ? yr - 1 : yr;
   const MONTHS_PT = [
-    "janeiro", "fevereiro", "março", "abril", "maio", "junho",
-    "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+    "janeiro",
+    "fevereiro",
+    "março",
+    "abril",
+    "maio",
+    "junho",
+    "julho",
+    "agosto",
+    "setembro",
+    "outubro",
+    "novembro",
+    "dezembro",
   ];
   const monthLabel = MONTHS_PT[prevMonth - 1];
 
@@ -159,8 +178,18 @@ export function generateMonthReopenedPush(
   if (closure.status !== "closed") return null;
 
   const MONTHS_PT = [
-    "janeiro", "fevereiro", "março", "abril", "maio", "junho",
-    "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+    "janeiro",
+    "fevereiro",
+    "março",
+    "abril",
+    "maio",
+    "junho",
+    "julho",
+    "agosto",
+    "setembro",
+    "outubro",
+    "novembro",
+    "dezembro",
   ];
   const [, mo] = closure.monthYear.split("-").map(Number);
   const monthLabel = MONTHS_PT[mo - 1];
