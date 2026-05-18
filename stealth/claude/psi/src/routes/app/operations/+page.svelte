@@ -100,20 +100,20 @@
 		return null;
 	}
 
+	const expensesWithDueDate = $derived(
+		data.expenses.map((e) => ({ ...e, dueDate: expenseDueDate(e) })),
+	);
+
 	const overdueExpenses = $derived(
-		data.expenses.filter((e) => {
-			const d = expenseDueDate(e);
-			return d !== null && d < data.today;
-		}),
+		expensesWithDueDate.filter((e) => e.dueDate !== null && e.dueDate < data.today),
 	);
 	const dueTodayExpenses = $derived(
-		data.expenses.filter((e) => expenseDueDate(e) === data.today),
+		expensesWithDueDate.filter((e) => e.dueDate === data.today),
 	);
 	const dueThisWeekExpenses = $derived(
-		data.expenses.filter((e) => {
-			const d = expenseDueDate(e);
-			return d !== null && d > data.today && d <= data.weekEnd;
-		}),
+		expensesWithDueDate.filter(
+			(e) => e.dueDate !== null && e.dueDate > data.today && e.dueDate <= data.weekEnd,
+		),
 	);
 
 	const paidDescriptions = $derived(

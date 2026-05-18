@@ -8,6 +8,22 @@
 		description: string;
 		amount: number;
 		color: string | null;
+		dueDate: string | null;
+	}
+
+	function formatDueDate(dateStr: string): string {
+		const [yr, mo, day] = dateStr.split('-').map(Number);
+		return new Date(yr, mo - 1, day)
+			.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })
+			.replace('.', '');
+	}
+
+	function dayDiff(dueDate: string, today: string): number {
+		const [dy, dm, dd] = dueDate.split('-').map(Number);
+		const [ty, tm, td] = today.split('-').map(Number);
+		return Math.round(
+			(new Date(dy, dm - 1, dd).getTime() - new Date(ty, tm - 1, td).getTime()) / 86_400_000,
+		);
 	}
 
 	interface Props {
@@ -45,6 +61,12 @@
 							<li class="flex min-h-[44px] items-center gap-2 rounded-lg border border-red-200/60 bg-red-50/60 px-3 py-2 dark:border-red-900/30 dark:bg-red-900/10">
 								<div class="min-w-0 flex-1">
 									<span class="text-sm text-red-900 dark:text-red-300">{e.description}</span>
+									{#if e.dueDate}
+										{@const diff = dayDiff(e.dueDate, today)}
+										<p class="mt-0.5 text-xs text-ink-muted">
+											{formatDueDate(e.dueDate)}<span class="ml-1">({diff > 0 ? '+' : ''}{diff})</span>
+										</p>
+									{/if}
 								</div>
 								<span class="shrink-0 text-sm font-semibold text-red-700 dark:text-red-400">
 									{formatBRL(e.amount)}
@@ -93,6 +115,12 @@
 							<li class="flex min-h-[44px] items-center gap-2 rounded-lg border border-amber-200/60 bg-amber-50/60 px-3 py-2 dark:border-amber-900/30 dark:bg-amber-900/10">
 								<div class="min-w-0 flex-1">
 									<span class="text-sm text-amber-900 dark:text-amber-300">{e.description}</span>
+									{#if e.dueDate}
+										{@const diff = dayDiff(e.dueDate, today)}
+										<p class="mt-0.5 text-xs text-ink-muted">
+											{formatDueDate(e.dueDate)}<span class="ml-1">({diff > 0 ? '+' : ''}{diff})</span>
+										</p>
+									{/if}
 								</div>
 								<span class="shrink-0 text-sm font-semibold text-amber-700 dark:text-amber-400">
 									{formatBRL(e.amount)}
@@ -137,9 +165,17 @@
 					</p>
 					<ul class="space-y-1.5" aria-label="Contas que vencem esta semana">
 						{#each dueThisWeek as e (e.id)}
-							<li class="flex min-h-[44px] items-center justify-between rounded-lg border border-primary-100/40 px-3 py-2 dark:border-white/5">
-								<span class="text-sm text-ink dark:text-bg">{e.description}</span>
-								<span class="text-sm text-ink-muted">{formatBRL(e.amount)}</span>
+							<li class="flex min-h-[44px] items-center gap-2 rounded-lg border border-primary-100/40 px-3 py-2 dark:border-white/5">
+								<div class="min-w-0 flex-1">
+									<span class="text-sm text-ink dark:text-bg">{e.description}</span>
+									{#if e.dueDate}
+										{@const diff = dayDiff(e.dueDate, today)}
+										<p class="mt-0.5 text-xs text-ink-muted">
+											{formatDueDate(e.dueDate)}<span class="ml-1">({diff > 0 ? '+' : ''}{diff})</span>
+										</p>
+									{/if}
+								</div>
+								<span class="shrink-0 text-sm text-ink-muted">{formatBRL(e.amount)}</span>
 							</li>
 						{/each}
 					</ul>
