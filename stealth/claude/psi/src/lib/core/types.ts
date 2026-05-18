@@ -178,6 +178,23 @@ export interface MonthClosure {
   updatedAt: string;
 }
 
+// ── Push notifications ────────────────────────────────────────────────────────
+
+export type PushTrigger =
+  | "unregistered_sessions"
+  | "due_payments"
+  | "month_close_reminder"
+  | "month_reopened";
+
+export interface PushPayload {
+  trigger: PushTrigger;
+  title: string;
+  body: string;
+  url: string;
+  scheduledFor?: string;
+  data?: Record<string, string | number | boolean>;
+}
+
 // ── Templates ─────────────────────────────────────────────────────────────────
 
 export type TemplateCategory = "evolucao" | "relatorio" | "outro";
