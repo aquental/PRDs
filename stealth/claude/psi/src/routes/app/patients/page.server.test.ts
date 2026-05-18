@@ -1,8 +1,9 @@
 /**
  * Tests for /app/patients +page.server.ts actions.
  *
- * Covers: email required validation, email format validation, auth guards, and
- * happy-path creation. Uses the same table-aware mock pattern as sessions tests.
+ * Covers: email required validation, email format validation, auth guards,
+ * happy-path creation, CPF validation, start_date, and notes fields.
+ * Uses the same table-aware mock pattern as sessions tests.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { isActionFailure } from "@sveltejs/kit";
@@ -27,7 +28,7 @@ function makeLocals({
     data: typeof THERAPIST | null;
     error: { message: string } | null;
   },
-  dbError = null as { message: string } | null,
+  dbError = null as { message: string; code?: string } | null,
 } = {}) {
   const therapistChain = {
     select: vi.fn().mockReturnThis(),
@@ -237,6 +238,144 @@ describe("create", () => {
         ...validData,
         email: "user@mail.example.com.br",
       }),
+      locals,
+    } as unknown as Parameters<typeof actions.create>[0]);
+
+    expect(result).toEqual({ success: true });
+  });
+});
+
+// ── create — CPF, start_date, notes ───────────────────────────────────────────
+
+describe("create — CPF, start_date, notes", () => {
+  const VALID_CPF_RAW = "52998224725";
+  const VALID_CPF_MASKED = "529.982.247-25";
+  const base = { name: "Test Patient", email: "test@example.com" };
+
+  it("valid raw CPF → success", async () => {
+    const locals = makeLocals();
+    const result = await actions.create({
+      request: makeRequest({ ...base, cpf: VALID_CPF_RAW }),
+      locals,
+    } as unknown as Parameters<typeof actions.create>[0]);
+
+    expect(result).toEqual({ success: true });
+  });
+
+  it("valid masked CPF → success", async () => {
+    const locals = makeLocals();
+    const result = await actions.create({
+      request: makeRequest({ ...base, cpf: VALID_CPF_MASKED }),
+      locals,
+    } as unknown as Parameters<typeof actions.create>[0]);
+
+    expect(result).toEqual({ success: true });
+  });
+
+  it("empty CPF string → treated as null → success", async () => {
+    const locals = makeLocals();
+    const result = await actions.create({
+      request: makeRequest({ ...base, cpf: "" }),
+      locals,
+    } as unknown as Parameters<typeof actions.create>[0]);
+
+    expect(result).toEqual({ success: true });
+  });
+
+  it("invalid CPF check digits → 400 with cpf error", async () => {
+    const locals = makeLocals();
+    const result = await actions.create({
+      request: makeRequest({ ...base, cpf: "12345678901" }),
+      locals,
+    } as unknown as Parameters<typeof actions.create>[0]);
+
+    expect(isActionFailure(result)).toBe(true);
+    if (isActionFailure(result)) {
+      expect(result.status).toBe(400);
+      const error = (
+        result.data as unknown as { error: Record<string, unknown> }
+      ).error;
+      expect(error).toHaveProperty("cpf");
+    }
+  });
+
+  it("all-same CPF (11111111111) → 400 with cpf error", async () => {
+    const locals = makeLocals();
+    const result = await actions.create({
+      request: makeRequest({ ...base, cpf: "11111111111" }),
+      locals,
+    } as unknown as Parameters<typeof actions.create>[0]);
+
+    expect(isActionFailure(result)).toBe(true);
+    if (isActionFailure(result)) {
+      expect(result.status).toBe(400);
+      const error = (
+        result.data as unknown as { error: Record<string, unknown> }
+      ).error;
+      expect(error).toHaveProperty("cpf");
+    }
+  });
+
+  it("duplicate CPF (23505) → 409 with cpf field error", async () => {
+    const locals = makeLocals({
+      dbError: { message: "unique violation", code: "23505" },
+    });
+    const result = await actions.create({
+      request: makeRequest({ ...base, cpf: VALID_CPF_RAW }),
+      locals,
+    } as unknown as Parameters<typeof actions.create>[0]);
+
+    expect(isActionFailure(result)).toBe(true);
+    if (isActionFailure(result)) {
+      expect(result.status).toBe(409);
+      const error = (
+        result.data as unknown as { error: Record<string, unknown> }
+      ).error;
+      expect(error).toHaveProperty("cpf");
+    }
+  });
+
+  it("valid start_date (YYYY-MM-DD) → success", async () => {
+    const locals = makeLocals();
+    const result = await actions.create({
+      request: makeRequest({ ...base, start_date: "2025-01-15" }),
+      locals,
+    } as unknown as Parameters<typeof actions.create>[0]);
+
+    expect(result).toEqual({ success: true });
+  });
+
+  it("invalid start_date format → 400 with start_date error", async () => {
+    const locals = makeLocals();
+    const result = await actions.create({
+      request: makeRequest({ ...base, start_date: "15/01/2025" }),
+      locals,
+    } as unknown as Parameters<typeof actions.create>[0]);
+
+    expect(isActionFailure(result)).toBe(true);
+    if (isActionFailure(result)) {
+      expect(result.status).toBe(400);
+      const error = (
+        result.data as unknown as { error: Record<string, unknown> }
+      ).error;
+      expect(error).toHaveProperty("start_date");
+    }
+  });
+
+  it("empty start_date → treated as null → success", async () => {
+    const locals = makeLocals();
+    const result = await actions.create({
+      request: makeRequest({ ...base, start_date: "" }),
+      locals,
+    } as unknown as Parameters<typeof actions.create>[0]);
+
+    expect(result).toEqual({ success: true });
+  });
+
+  it("notes provided → success", async () => {
+    const locals = makeLocals();
+    const result = await actions.create({
+      request: makeRequest({ ...base, notes: "Observações do paciente." }),
       locals,
     } as unknown as Parameters<typeof actions.create>[0]);
 
