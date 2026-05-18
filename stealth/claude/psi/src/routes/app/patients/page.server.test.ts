@@ -63,6 +63,7 @@ describe("create", () => {
     email: "ana@example.com",
     phone: "11999990001",
     session_fee: "200",
+    cpf: "52998224725",
   };
 
   it("happy path: valid name + email returns success", async () => {
@@ -221,10 +222,14 @@ describe("create", () => {
     }
   });
 
-  it("optional fields absent → success (only name + email required)", async () => {
+  it("optional fields absent → success (name + email + cpf required)", async () => {
     const locals = makeLocals();
     const result = await actions.create({
-      request: makeRequest({ name: "Minimal Patient", email: "min@test.com" }),
+      request: makeRequest({
+        name: "Minimal Patient",
+        email: "min@test.com",
+        cpf: "52998224725",
+      }),
       locals,
     } as unknown as Parameters<typeof actions.create>[0]);
 
@@ -250,7 +255,11 @@ describe("create", () => {
 describe("create — CPF, start_date, notes", () => {
   const VALID_CPF_RAW = "52998224725";
   const VALID_CPF_MASKED = "529.982.247-25";
-  const base = { name: "Test Patient", email: "test@example.com" };
+  const base = {
+    name: "Test Patient",
+    email: "test@example.com",
+    cpf: VALID_CPF_RAW,
+  };
 
   it("valid raw CPF → success", async () => {
     const locals = makeLocals();
@@ -272,14 +281,21 @@ describe("create — CPF, start_date, notes", () => {
     expect(result).toEqual({ success: true });
   });
 
-  it("empty CPF string → treated as null → success", async () => {
+  it("empty CPF string → 400 with cpf error (required)", async () => {
     const locals = makeLocals();
     const result = await actions.create({
       request: makeRequest({ ...base, cpf: "" }),
       locals,
     } as unknown as Parameters<typeof actions.create>[0]);
 
-    expect(result).toEqual({ success: true });
+    expect(isActionFailure(result)).toBe(true);
+    if (isActionFailure(result)) {
+      expect(result.status).toBe(400);
+      const error = (
+        result.data as unknown as { error: Record<string, unknown> }
+      ).error;
+      expect(error).toHaveProperty("cpf");
+    }
   });
 
   it("invalid CPF check digits → 400 with cpf error", async () => {

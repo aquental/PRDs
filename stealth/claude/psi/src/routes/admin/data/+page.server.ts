@@ -350,6 +350,7 @@ export const actions: Actions = {
       phone: strOrNull(fd, "phone"),
       session_fee: numOrNull(fd, "session_fee"),
       active: bool(fd, "active"),
+      cpf: str(fd, "cpf"),
     });
     if (error) return fail(500, { error: error.message });
     return { success: true };

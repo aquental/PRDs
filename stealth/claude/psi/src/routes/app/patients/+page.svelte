@@ -33,7 +33,11 @@
 	let notes = $state('');
 	let session_fee = $state(untrack(() => data.defaultFee.toString()));
 
-	let canSubmit = $derived(name.trim().length > 0 && email.trim().length > 0);
+	let canSubmit = $derived(
+		name.trim().length > 0 &&
+			email.trim().length > 0 &&
+			cpf.replace(/\D/g, '').length === 11
+	);
 
 	function maskCPF(value: string): string {
 		const d = value.replace(/\D/g, '').slice(0, 11);
@@ -78,13 +82,14 @@
 				<Input label="E-mail" name="email" type="email" bind:value={email} required data-testid="inp-email" />
 				<Input label="Telefone" name="phone" bind:value={phone} data-testid="inp-phone" />
 				<div>
-					<label for="inp-cpf" class="label">CPF</label>
+					<label for="inp-cpf" class="label">CPF <span aria-hidden="true" class="text-red-500">*</span></label>
 					<input
 						id="inp-cpf"
 						name="cpf"
 						value={cpf}
 						placeholder="000.000.000-00"
 						maxlength={14}
+						required
 						oninput={(e) => { cpf = maskCPF((e.currentTarget as HTMLInputElement).value); }}
 						class="input w-full"
 						data-testid="inp-cpf"

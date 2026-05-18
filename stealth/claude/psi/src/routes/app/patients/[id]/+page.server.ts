@@ -16,14 +16,10 @@ const PatientSchema = z.object({
     .optional()
     .or(z.literal("")),
   active: z.coerce.boolean().default(true),
-  cpf: z.preprocess(
-    (val) => (val === "" ? null : val),
-    z
-      .string()
-      .refine((val) => normalizeCPF(val) !== null, "CPF inválido")
-      .nullable()
-      .optional(),
-  ),
+  cpf: z
+    .string({ required_error: "CPF é obrigatório" })
+    .min(1, "CPF é obrigatório")
+    .refine((val) => normalizeCPF(val) !== null, "CPF inválido"),
   start_date: z.preprocess(
     (val) => (val === "" ? null : val),
     z
@@ -181,7 +177,7 @@ export const actions: Actions = {
         session_fee: p.session_fee ?? null,
         google_calendar_attendee_email: calendarEmail,
         active: p.active,
-        cpf: p.cpf ? normalizeCPF(p.cpf) : null,
+        cpf: normalizeCPF(p.cpf)!,
         start_date: p.start_date ?? null,
         notes: p.notes || null,
       })

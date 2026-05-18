@@ -80,7 +80,11 @@ function makeRequest(data: Record<string, string>): Request {
 // ── update ─────────────────────────────────────────────────────────────────────
 
 describe("update", () => {
-  const validData = { name: "Ana Souza", email: "ana@example.com" };
+  const validData = {
+    name: "Ana Souza",
+    email: "ana@example.com",
+    cpf: VALID_CPF_RAW,
+  };
 
   it("happy path: valid data returns success", async () => {
     const locals = makeLocals();
@@ -189,7 +193,7 @@ describe("update", () => {
     expect(result).toEqual({ success: true });
   });
 
-  it("empty CPF string → treated as null → success", async () => {
+  it("empty CPF string → 400 with cpf error (required)", async () => {
     const locals = makeLocals();
     const result = await actions.update({
       request: makeRequest({ ...validData, cpf: "" }),
@@ -197,7 +201,14 @@ describe("update", () => {
       params: { id: PATIENT_ID },
     } as unknown as Parameters<typeof actions.update>[0]);
 
-    expect(result).toEqual({ success: true });
+    expect(isActionFailure(result)).toBe(true);
+    if (isActionFailure(result)) {
+      expect(result.status).toBe(400);
+      const error = (
+        result.data as unknown as { error: Record<string, unknown> }
+      ).error;
+      expect(error).toHaveProperty("cpf");
+    }
   });
 
   it("invalid CPF check digits → 400 with cpf error", async () => {

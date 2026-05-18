@@ -55,7 +55,7 @@
 				name: string;
 				email: string | null;
 				phone: string | null;
-				cpf: string | null;
+				cpf: string;
 				start_date: string | null;
 				notes: string | null;
 				session_fee: number | null;
@@ -278,13 +278,14 @@
 				<Input label="E-mail" name="email" type="email" bind:value={email} />
 				<Input label="Telefone" name="phone" bind:value={phone} />
 				<div>
-					<label for="edit-cpf" class="label">CPF</label>
+					<label for="edit-cpf" class="label">CPF <span aria-hidden="true" class="text-red-500">*</span></label>
 					<input
 						id="edit-cpf"
 						name="cpf"
 						value={cpf}
 						placeholder="000.000.000-00"
 						maxlength={14}
+						required
 						oninput={(e) => { cpf = maskCPF((e.currentTarget as HTMLInputElement).value); }}
 						class="input w-full"
 					/>
