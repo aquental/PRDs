@@ -120,6 +120,14 @@
 		new Set(data.monthExpenseEntries.map((e) => e.expense_id).filter((id): id is string => id !== null)),
 	);
 
+	const paidEntries = $derived(
+		new Map(
+			data.monthExpenseEntries
+				.filter((e): e is typeof e & { expense_id: string } => e.expense_id !== null)
+				.map((e) => [e.expense_id, e.occurred_at]),
+		),
+	);
+
 	// ── Month cashflow ─────────────────────────────────────────
 	const chargedSessions = $derived(
 		data.monthSessions.filter(
@@ -294,6 +302,7 @@
 			dueToday={dueTodayExpenses}
 			dueThisWeek={dueThisWeekExpenses}
 			paidExpenseIds={paidExpenseIds}
+			paidEntries={paidEntries}
 			today={data.today}
 		/>
 	</div>
