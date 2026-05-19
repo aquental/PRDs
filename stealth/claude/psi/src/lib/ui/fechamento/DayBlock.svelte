@@ -2,6 +2,8 @@
 	import { CheckCircle, Users, Check } from 'phosphor-svelte';
 	import SessionItem from './SessionItem.svelte';
 	import type { AttendanceSession } from './SessionItem.svelte';
+	import VoiceAppoint from './VoiceAppoint.svelte';
+	import type { VoiceDecision } from './VoiceAppoint.svelte';
 
 	interface Props {
 		dayStr: string; // YYYY-MM-DD (UTC date)
@@ -13,6 +15,7 @@
 		onToggle?: () => void;
 		onAppoint?: (sessionId: string, status: 'presente' | 'faltou') => void;
 		onBulkAppoint?: (date: string) => void;
+		onVoiceAppoint?: (decisions: VoiceDecision[]) => void;
 	}
 
 	let {
@@ -24,7 +27,8 @@
 		expanded = false,
 		onToggle = () => {},
 		onAppoint = (id, status) => console.log('[appoint stub]', id, status),
-		onBulkAppoint = (date) => console.log('[bulk appoint stub]', date)
+		onBulkAppoint = (date) => console.log('[bulk appoint stub]', date),
+		onVoiceAppoint = () => {}
 	}: Props = $props();
 
 	const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -132,13 +136,16 @@
 				</div>
 
 				{#if hasBulkCandidate}
-					<button
-						onclick={() => onBulkAppoint(dayStr)}
-						class="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-primary-100/80 py-1.5 text-xs text-ink-muted transition-colors hover:border-primary hover:text-primary dark:border-white/10 dark:hover:border-primary-400/60 dark:hover:text-primary-300"
-					>
-						<Check size={12} weight="bold" />
-						Marcar todas como presente
-					</button>
+					<div class="mt-2 flex flex-col gap-1.5">
+						<VoiceAppoint {sessions} onConfirm={onVoiceAppoint} />
+						<button
+							onclick={() => onBulkAppoint(dayStr)}
+							class="flex w-full items-center justify-center gap-1.5 rounded-lg border border-primary-100/80 py-1.5 text-xs text-ink-muted transition-colors hover:border-primary hover:text-primary dark:border-white/10 dark:hover:border-primary-400/60 dark:hover:text-primary-300"
+						>
+							<Check size={12} weight="bold" />
+							Marcar todas como presente
+						</button>
+					</div>
 				{/if}
 			</div>
 		{/if}

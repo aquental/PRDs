@@ -5,6 +5,7 @@
 	import { CaretLeft, CaretRight, Lock, LockOpen, WarningCircle } from 'phosphor-svelte';
 	import WeekCarousel from '$lib/ui/fechamento/WeekCarousel.svelte';
 	import PendingList from '$lib/ui/fechamento/PendingList.svelte';
+	import type { VoiceDecision } from '$lib/ui/fechamento/VoiceAppoint.svelte';
 
 	let { data } = $props();
 
@@ -125,6 +126,42 @@
 				appointError =
 					(result.type === 'failure' && (result.data as { error?: string })?.error) ||
 					'Erro ao apontar sessões';
+			}
+		} catch {
+			for (const { idx, prev } of reverts) localSessions[idx].attendance_status = prev;
+			appointError = 'Erro de conexão. Tente novamente.';
+		}
+	}
+
+	// ── Voice appoint ────────────────────────────────────────────────────────────
+
+	async function handleVoiceAppoint(voiceDecisions: VoiceDecision[]) {
+		const reverts: Array<{ idx: number; prev: 'presente' | 'faltou' | null }> = [];
+
+		for (const d of voiceDecisions) {
+			const idx = localSessions.findIndex((s) => s.id === d.sessionId);
+			if (idx >= 0) {
+				reverts.push({ idx, prev: localSessions[idx].attendance_status });
+				localSessions[idx].attendance_status = d.status; // optimistic
+			}
+		}
+
+		const fd = new FormData();
+		fd.set(
+			'decisions',
+			JSON.stringify(voiceDecisions.map((d) => ({ session_id: d.sessionId, status: d.status })))
+		);
+
+		try {
+			const res = await fetch('?/appointVoice', { method: 'POST', body: fd });
+			const result = deserialize(await res.text());
+			if (result.type === 'success') {
+				await invalidateAll();
+			} else {
+				for (const { idx, prev } of reverts) localSessions[idx].attendance_status = prev;
+				appointError =
+					(result.type === 'failure' && (result.data as { error?: string })?.error) ||
+					'Erro ao apontar por voz';
 			}
 		} catch {
 			for (const { idx, prev } of reverts) localSessions[idx].attendance_status = prev;
@@ -323,6 +360,7 @@
 			isClosed={fechado}
 			onAppoint={handleAppoint}
 			onBulkAppoint={handleBulkAppoint}
+			onVoiceAppoint={handleVoiceAppoint}
 		/>
 	{:else}
 		<PendingList
@@ -330,6 +368,7 @@
 			isClosed={fechado}
 			onAppoint={handleAppoint}
 			onBulkAppoint={handleBulkAppoint}
+			onVoiceAppoint={handleVoiceAppoint}
 		/>
 	{/if}
 </div>

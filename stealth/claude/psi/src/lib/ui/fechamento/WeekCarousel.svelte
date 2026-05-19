@@ -2,6 +2,7 @@
 	import { CaretLeft, CaretRight } from 'phosphor-svelte';
 	import DayBlock from './DayBlock.svelte';
 	import type { AttendanceSession } from './SessionItem.svelte';
+	import type { VoiceDecision } from './VoiceAppoint.svelte';
 
 	interface Props {
 		sessions: AttendanceSession[];
@@ -9,6 +10,7 @@
 		isClosed: boolean;
 		onAppoint?: (sessionId: string, status: 'presente' | 'faltou') => void;
 		onBulkAppoint?: (date: string) => void;
+		onVoiceAppoint?: (decisions: VoiceDecision[]) => void;
 	}
 
 	let {
@@ -16,7 +18,8 @@
 		selectedMonth,
 		isClosed,
 		onAppoint = (id, status) => console.log('[appoint stub]', id, status),
-		onBulkAppoint = (date) => console.log('[bulk appoint stub]', date)
+		onBulkAppoint = (date) => console.log('[bulk appoint stub]', date),
+		onVoiceAppoint = () => {}
 	}: Props = $props();
 
 	// Today in UTC (matches scheduled_at UTC-date grouping)
@@ -190,6 +193,7 @@
 					onToggle={() => toggleDay(dayStr)}
 					{onAppoint}
 					{onBulkAppoint}
+					{onVoiceAppoint}
 				/>
 			{/if}
 		{/each}

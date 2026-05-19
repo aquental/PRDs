@@ -386,5 +386,122 @@ export const actions: Actions = {
 
 		await invalidateDashboard(therapist.id);
 		return { success: true, action: 'reopenMonth' };
+	},
+
+	// Aponta múltiplas sessões com status individual via voz (§10)
+	appointVoice: async ({ request, locals }) => {
+		const { user } = await locals.safeGetSession();
+		if (!user) return fail(401, { error: 'Não autenticado' });
+
+		const { data: therapist } = await locals.supabase
+			.from('therapists')
+			.select('id, clinic_id')
+			.eq('user_id', user.id)
+			.single();
+		if (!therapist) return fail(403, { error: 'Terapeuta não encontrado' });
+
+		const formSchema = z.object({ decisions: z.string().min(1) });
+		const formParsed = formSchema.safeParse(Object.fromEntries(await request.formData()));
+		if (!formParsed.success) return fail(400, { error: 'Dados inválidos' });
+
+		const decisionsSchema = z.array(
+			z.object({
+				session_id: z.string().uuid(),
+				status: z.enum(['presente', 'faltou'])
+			})
+		);
+
+		let decisions: { session_id: string; status: 'presente' | 'faltou' }[];
+		try {
+			decisions = decisionsSchema.parse(JSON.parse(formParsed.data.decisions));
+		} catch {
+			return fail(400, { error: 'Decisões inválidas' });
+		}
+
+		if (decisions.length === 0) return { success: true, action: 'appointVoice', count: 0 };
+
+		const now = new Date();
+		const nowIso = now.toISOString();
+		const sessionIds = decisions.map((d) => d.session_id);
+
+		// Fetch all sessions in one query (therapist_id filter enforces ownership)
+		const { data: dbSessions, error: fetchError } = await locals.supabase
+			.from('sessions')
+			.select('id, clinic_id, scheduled_at, duration_minutes, status, attendance_status')
+			.in('id', sessionIds)
+			.eq('therapist_id', therapist.id);
+
+		if (fetchError) return fail(400, { error: fetchError.message });
+
+		const sessionMap = new Map((dbSessions ?? []).map((s) => [s.id, s]));
+
+		// Validate each decision
+		for (const d of decisions) {
+			const session = sessionMap.get(d.session_id);
+			if (!session) return fail(404, { error: 'Sessão não encontrada' });
+			if (session.status === 'cancelled')
+				return fail(422, { error: 'Sessão cancelada não pode ser apontada' });
+			if (!sessionEndedBefore(session.scheduled_at, session.duration_minutes, now))
+				return fail(422, { error: 'Sessão ainda não terminou' });
+		}
+
+		// Check all relevant months are open (batch query)
+		const monthYears = [
+			...new Set(decisions.map((d) => sessionMap.get(d.session_id)!.scheduled_at.slice(0, 7)))
+		];
+		const { data: closures } = await locals.supabase
+			.from('month_closures')
+			.select('month_year, status')
+			.eq('therapist_id', therapist.id)
+			.in('month_year', monthYears);
+
+		const closedMonths = new Set(
+			(closures ?? []).filter((c) => c.status === 'closed').map((c) => c.month_year)
+		);
+		if (closedMonths.size > 0) return fail(422, { error: 'Mês fechado — apontamento não permitido' });
+
+		// Bulk update grouped by status (max 2 queries)
+		const presenteIds = decisions.filter((d) => d.status === 'presente').map((d) => d.session_id);
+		const faltouIds = decisions.filter((d) => d.status === 'faltou').map((d) => d.session_id);
+
+		if (presenteIds.length > 0) {
+			const { error: e } = await locals.supabase
+				.from('sessions')
+				.update({ attendance_status: 'presente', attendance_updated_at: nowIso })
+				.in('id', presenteIds)
+				.eq('therapist_id', therapist.id);
+			if (e) return fail(400, { error: e.message });
+		}
+
+		if (faltouIds.length > 0) {
+			const { error: e } = await locals.supabase
+				.from('sessions')
+				.update({ attendance_status: 'faltou', attendance_updated_at: nowIso })
+				.in('id', faltouIds)
+				.eq('therapist_id', therapist.id);
+			if (e) return fail(400, { error: e.message });
+		}
+
+		// Insert audit logs with source='voice' (one insert for the whole batch)
+		const logs = decisions.map((d) => {
+			const session = sessionMap.get(d.session_id)!;
+			return {
+				session_id: d.session_id,
+				clinic_id: therapist.clinic_id,
+				actor_therapist_id: therapist.id,
+				action: (session.attendance_status !== null ? 'updated' : 'created') as
+					| 'created'
+					| 'updated',
+				previous_value: session.attendance_status as 'presente' | 'faltou' | null,
+				new_value: d.status,
+				source: 'voice' as const
+			};
+		});
+
+		const { error: logError } = await locals.supabase.from('appointment_log').insert(logs);
+		if (logError) return fail(400, { error: logError.message });
+
+		await invalidateDashboard(therapist.id);
+		return { success: true, action: 'appointVoice', count: decisions.length };
 	}
 };
