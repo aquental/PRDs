@@ -199,13 +199,17 @@ Histórico completo da sessão acessível via página de detalhe da sessão (for
 
 ## 10. Decisões pendentes
 
-Itens que precisam ser resolvidos antes ou durante o desenho técnico:
+~~Itens que precisam ser resolvidos antes ou durante o desenho técnico.~~ Todas resolvidas — ver §10.1.
 
-1. **Sessões reagendadas que cruzam meses.** Quando uma sessão marcada para 30/jan é reagendada para 02/fev, ela conta no fechamento de janeiro ou fevereiro? Decisão tentativa em §6.5 (data realizada), mas precisa validar contra o modelo de dados atual.
-2. **Sessões canceladas com aviso prévio.** Confirmar que o status atual da sessão (após cancelamento ≥24h) faz com que ela não apareça na fila de apontamento — caso contrário, é preciso filtro explícito.
-3. **Permissões em clínica multi-usuário.** Quem pode apontar? Só o terapeuta da sessão? Admin pode apontar por outro terapeuta? Quem pode fechar o mês? Quem pode reabrir um mês fechado (se isso for permitido)?
-4. **Reabertura de mês fechado.** Cenário: erro detectado após fechamento. Permitir reabrir? Com quais permissões? Por quanto tempo?
-5. **Notificação proativa.** O badge no menu informa passivamente. Vale também: email no fim do dia? Push? Notificação intra-app? Decidir no contexto da fase de voz.
+## 10.1 Decisões resolvidas (Fase 1)
+
+| # | Pergunta | Decisão | Justificativa |
+|---|----------|---------|---------------|
+| 1 | Sessões reagendadas que cruzam meses | Pertence ao mês do `scheduled_at` vigente (data realizada) | Campo já existe e é atualizado no reagendamento. Consistente com §6.5. |
+| 2 | Sessões canceladas com aviso prévio | Filtro: `status != 'cancelled'` (qualquer cancelamento exclui da fila) | Simples e sem ambiguidade. O módulo de cancelamento já lida com as implicações financeiras. |
+| 3 | Permissões em clínica multi-usuário | Só o próprio terapeuta pode apontar, fechar e reabrir o próprio mês | Consistente com o padrão atual do projeto (queries filtram por `therapist_id`). Sem delegação na v1. |
+| 4 | Reabertura de mês fechado | Permitida, pelo próprio terapeuta, sem prazo | `month_closures` já tem `reopened_at`/`reopened_by`. Botão discreto "Reabrir mês" no banner de mês fechado. |
+| 5 | Notificação proativa | Só o badge no menu lateral (v1) | Email, push e notificação intra-app ficam para a fase de apontamento por voz. |
 
 ---
 

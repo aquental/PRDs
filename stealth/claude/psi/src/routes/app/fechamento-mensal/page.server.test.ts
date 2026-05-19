@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { isActionFailure } from '@sveltejs/kit';
-import { actions } from './+page.server';
+import { load, actions } from './+page.server';
 
 // ── module mocks ──────────────────────────────────────────────────────────────
 
@@ -463,6 +463,16 @@ describe('appointBulk', () => {
 		expect(isActionFailure(result)).toBe(true);
 		if (isActionFailure(result)) expect(result.status).toBe(400);
 	});
+
+	it('erro no insert do log quando há sessões atualizadas → 400', async () => {
+		const locals = makeBulkLocals({
+			updatedSessions: [{ id: 's1' }, { id: 's2' }],
+			logInsertError: { message: 'log table constraint' }
+		});
+		const result = await callAction('appointBulk', locals, { date: TODAY });
+		expect(isActionFailure(result)).toBe(true);
+		if (isActionFailure(result)) expect(result.status).toBe(400);
+	});
 });
 
 // ── closeMonth ────────────────────────────────────────────────────────────────
@@ -579,5 +589,213 @@ describe('reopenMonth', () => {
 		const result = await callAction('reopenMonth', locals, { closure_id: CLOSURE_UUID });
 		expect(isActionFailure(result)).toBe(true);
 		if (isActionFailure(result)) expect(result.status).toBe(400);
+	});
+});
+
+// ── load ──────────────────────────────────────────────────────────────────────
+
+// Sessão completa como retornada pela query do banco (inclui join patients)
+const PAST_AT = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(); // 2h atrás
+
+const DB_SESSION = {
+	id: SESSION_UUID,
+	scheduled_at: PAST_AT,
+	duration_minutes: 50,
+	fee: 200,
+	status: 'scheduled',
+	attendance_status: null as 'presente' | 'faltou' | null,
+	attendance_updated_at: null,
+	patient_id: 'patient-1',
+	patients: { name: 'Ana Silva' } as { name: string } | null
+};
+
+const DB_SESSION_APONTADA = { ...DB_SESSION, attendance_status: 'presente' as const };
+
+const DB_CLOSURE = {
+	id: CLOSURE_UUID,
+	status: 'closed',
+	closed_at: new Date().toISOString(),
+	closed_by: THERAPIST.id
+};
+
+const DB_LOG = {
+	session_id: SESSION_UUID,
+	created_at: new Date().toISOString(),
+	actor_therapist_id: THERAPIST.id
+};
+
+/**
+ * Factory para o contexto do `load`.
+ * - sessions é chamada 2×: 1ª = query de pendentes, 2ª = query do mês selecionado.
+ * - month_closures é chamada 2×: 1ª = todos os fechamentos (defaultMonth), 2ª = mês selecionado.
+ * - appointment_log é chamada 0 ou 1×.
+ */
+function makeLoadArgs({
+	mesParam = null as string | null,
+	pendingSessions = [] as { scheduled_at: string }[],
+	allClosures = [] as { month_year: string }[],
+	monthSessions = [] as typeof DB_SESSION[],
+	logs = [] as typeof DB_LOG[],
+	selectedMonthClosure = null as typeof DB_CLOSURE | null
+} = {}) {
+	const sessionsRef = { n: 0 };
+	const closuresRef = { n: 0 };
+
+	const fromMock = vi.fn((table: string) => {
+		switch (table) {
+			case 'sessions': {
+				sessionsRef.n++;
+				return sessionsRef.n === 1
+					? makeThenable({ data: pendingSessions, error: null })
+					: makeThenable({ data: monthSessions, error: null });
+			}
+			case 'month_closures': {
+				closuresRef.n++;
+				return closuresRef.n === 1
+					? makeThenable({ data: allClosures, error: null })
+					: makeThenable({ data: selectedMonthClosure, error: null });
+			}
+			case 'appointment_log':
+				return makeThenable({ data: logs, error: null });
+			default:
+				return makeThenable({ data: null, error: null });
+		}
+	});
+
+	const url = new URL('https://example.com/app/fechamento-mensal');
+	if (mesParam) url.searchParams.set('mes', mesParam);
+
+	return {
+		locals: { supabase: { from: fromMock } },
+		parent: vi.fn().mockResolvedValue({ therapist: THERAPIST }),
+		url
+	};
+}
+
+describe('load', () => {
+	it('mês sem sessões → summary com zeros e fechado=false', async () => {
+		const args = makeLoadArgs();
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const result = (await load(args as any)) as any;
+		expect(result.summary).toEqual({ total: 0, apontadas: 0, pendentes: 0, fechado: false });
+	});
+
+	it('sessão passada sem apontamento → pendentes=1', async () => {
+		const args = makeLoadArgs({ monthSessions: [DB_SESSION] });
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const result = (await load(args as any)) as any;
+		expect(result.summary.total).toBe(1);
+		expect(result.summary.pendentes).toBe(1);
+		expect(result.summary.apontadas).toBe(0);
+	});
+
+	it('sessão apontada → apontadas=1, pendentes=0', async () => {
+		const args = makeLoadArgs({ monthSessions: [DB_SESSION_APONTADA] });
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const result = (await load(args as any)) as any;
+		expect(result.summary.total).toBe(1);
+		expect(result.summary.apontadas).toBe(1);
+		expect(result.summary.pendentes).toBe(0);
+	});
+
+	it('mistura: 1 pendente + 1 apontada → total=2, apontadas=1, pendentes=1', async () => {
+		const args = makeLoadArgs({ monthSessions: [DB_SESSION, DB_SESSION_APONTADA] });
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const result = (await load(args as any)) as any;
+		expect(result.summary).toMatchObject({ total: 2, apontadas: 1, pendentes: 1 });
+	});
+
+	it('closure com status closed → summary.fechado=true', async () => {
+		const args = makeLoadArgs({ selectedMonthClosure: DB_CLOSURE });
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const result = (await load(args as any)) as any;
+		expect(result.summary.fechado).toBe(true);
+	});
+
+	it('sem closure → summary.fechado=false', async () => {
+		const args = makeLoadArgs({ selectedMonthClosure: null });
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const result = (await load(args as any)) as any;
+		expect(result.summary.fechado).toBe(false);
+	});
+
+	it('?mes válido no URL sobrescreve o defaultMonth', async () => {
+		const args = makeLoadArgs({ mesParam: '2025-11' });
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const result = (await load(args as any)) as any;
+		expect(result.selectedMonth).toBe('2025-11');
+	});
+
+	it('?mes com formato inválido é ignorado → usa defaultMonth (mês corrente)', async () => {
+		const currentMonth = new Date().toISOString().slice(0, 7);
+		const args = makeLoadArgs({ mesParam: '13/2026' }); // formato inválido
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const result = (await load(args as any)) as any;
+		expect(result.selectedMonth).toBe(currentMonth);
+	});
+
+	it('defaultMonth é o mês pendente mais antigo ainda aberto', async () => {
+		const pendingSessions = [
+			{ scheduled_at: '2026-03-10T10:00:00.000Z' },
+			{ scheduled_at: '2026-02-15T10:00:00.000Z' }
+		];
+		const allClosures = [{ month_year: '2026-02' }]; // fevereiro fechado
+		const args = makeLoadArgs({ pendingSessions, allClosures });
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const result = (await load(args as any)) as any;
+		expect(result.defaultMonth).toBe('2026-03');
+	});
+
+	it('patientName extraído do join patients', async () => {
+		const args = makeLoadArgs({ monthSessions: [DB_SESSION] });
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const result = (await load(args as any)) as any;
+		expect(result.sessions[0].patientName).toBe('Ana Silva');
+	});
+
+	it('patients null → patientName vazio', async () => {
+		const sessionSemPaciente = { ...DB_SESSION, patients: null };
+		const args = makeLoadArgs({ monthSessions: [sessionSemPaciente] });
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const result = (await load(args as any)) as any;
+		expect(result.sessions[0].patientName).toBe('');
+	});
+
+	it('isModified=false quando sessão tem exatamente 1 log', async () => {
+		const args = makeLoadArgs({ monthSessions: [DB_SESSION], logs: [DB_LOG] });
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const result = (await load(args as any)) as any;
+		expect(result.sessions[0].isModified).toBe(false);
+	});
+
+	it('isModified=true quando sessão tem >1 log (foi editada)', async () => {
+		const logs = [
+			DB_LOG,
+			{ ...DB_LOG, created_at: new Date(Date.now() - 60_000).toISOString() }
+		];
+		const args = makeLoadArgs({ monthSessions: [DB_SESSION], logs });
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const result = (await load(args as any)) as any;
+		expect(result.sessions[0].isModified).toBe(true);
+	});
+
+	it('lastLogAt é o created_at do log mais recente (primeiro da lista ordenada por DESC)', async () => {
+		const recentAt = new Date().toISOString();
+		const olderAt = new Date(Date.now() - 60_000).toISOString();
+		const logs = [{ ...DB_LOG, created_at: recentAt }, { ...DB_LOG, created_at: olderAt }];
+		const args = makeLoadArgs({ monthSessions: [DB_SESSION], logs });
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const result = (await load(args as any)) as any;
+		expect(result.sessions[0].lastLogAt).toBe(recentAt);
+	});
+
+	it('sem sessões no mês → appointment_log não é consultado', async () => {
+		const args = makeLoadArgs({ monthSessions: [] });
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		await load(args as any);
+		const logCalls = (args.locals.supabase.from as ReturnType<typeof vi.fn>).mock.calls.filter(
+			(call: unknown[]) => call[0] === 'appointment_log'
+		);
+		expect(logCalls).toHaveLength(0);
 	});
 });

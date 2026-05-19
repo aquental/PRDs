@@ -1,8 +1,10 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
-	import { enhance } from '$app/forms';
-	import { CaretLeft, CaretRight, Lock, LockOpen } from 'phosphor-svelte';
+	import { enhance, deserialize } from '$app/forms';
+	import { CaretLeft, CaretRight, Lock, LockOpen, WarningCircle } from 'phosphor-svelte';
+	import WeekCarousel from '$lib/ui/fechamento/WeekCarousel.svelte';
+	import PendingList from '$lib/ui/fechamento/PendingList.svelte';
 
 	let { data } = $props();
 
@@ -28,12 +30,109 @@
 		goto(url.toString(), { keepFocus: true });
 	}
 
-	// Progresso
-	const { total, apontadas, pendentes, fechado } = $derived(data.summary);
+	// ── Optimistic state ─────────────────────────────────────────────────────────
+	// Local mutable copy so progress bar and pills update before server confirms.
+	let localSessions = $state([...data.sessions]);
+
+	$effect(() => {
+		// Re-sync after SvelteKit re-fetches data (invalidateAll / navigation)
+		localSessions = [...data.sessions];
+	});
+
+	// Progresso — derived from localSessions so they reflect optimistic updates
+	const total = $derived(localSessions.length);
+	const apontadas = $derived(localSessions.filter((s) => s.attendance_status !== null).length);
+	const pendentes = $derived(
+		localSessions.filter(
+			(s) =>
+				s.attendance_status === null &&
+				s.status !== 'cancelled' &&
+				new Date(s.scheduled_at).getTime() + s.duration_minutes * 60_000 < Date.now()
+		).length
+	);
+	const fechado = $derived(data.summary.fechado);
+
 	const progressPct = $derived(total > 0 ? Math.round((apontadas / total) * 100) : 0);
 	const canClose = $derived(pendentes === 0 && !fechado && total > 0);
 
-	// View toggle (Calendário / Só pendentes) — estado preservado em URL
+	// Error toast (auto-clears after 5 s)
+	let appointError = $state<string | null>(null);
+	$effect(() => {
+		if (appointError) {
+			const id = setTimeout(() => (appointError = null), 5000);
+			return () => clearTimeout(id);
+		}
+	});
+
+	// ── Appoint handlers ─────────────────────────────────────────────────────────
+
+	async function handleAppoint(sessionId: string, status: 'presente' | 'faltou') {
+		const idx = localSessions.findIndex((s) => s.id === sessionId);
+		if (idx < 0) return;
+
+		const prevStatus = localSessions[idx].attendance_status;
+		localSessions[idx].attendance_status = status; // optimistic
+
+		const fd = new FormData();
+		fd.set('session_id', sessionId);
+		fd.set('status', status);
+
+		try {
+			const res = await fetch('?/appoint', { method: 'POST', body: fd });
+			const result = deserialize(await res.text());
+			if (result.type === 'success') {
+				await invalidateAll();
+			} else {
+				localSessions[idx].attendance_status = prevStatus; // revert
+				appointError =
+					(result.type === 'failure' && (result.data as { error?: string })?.error) ||
+					'Erro ao apontar sessão';
+			}
+		} catch {
+			localSessions[idx].attendance_status = prevStatus; // revert
+			appointError = 'Erro de conexão. Tente novamente.';
+		}
+	}
+
+	async function handleBulkAppoint(date: string) {
+		const now = Date.now();
+		const reverts: Array<{ idx: number; prev: 'presente' | 'faltou' | null }> = [];
+
+		localSessions.forEach((s, idx) => {
+			if (
+				s.scheduled_at.slice(0, 10) === date &&
+				s.attendance_status === null &&
+				s.status !== 'cancelled' &&
+				new Date(s.scheduled_at).getTime() + s.duration_minutes * 60_000 < now
+			) {
+				reverts.push({ idx, prev: s.attendance_status });
+				localSessions[idx].attendance_status = 'presente'; // optimistic
+			}
+		});
+
+		if (reverts.length === 0) return;
+
+		const fd = new FormData();
+		fd.set('date', date);
+
+		try {
+			const res = await fetch('?/appointBulk', { method: 'POST', body: fd });
+			const result = deserialize(await res.text());
+			if (result.type === 'success') {
+				await invalidateAll();
+			} else {
+				for (const { idx, prev } of reverts) localSessions[idx].attendance_status = prev;
+				appointError =
+					(result.type === 'failure' && (result.data as { error?: string })?.error) ||
+					'Erro ao apontar sessões';
+			}
+		} catch {
+			for (const { idx, prev } of reverts) localSessions[idx].attendance_status = prev;
+			appointError = 'Erro de conexão. Tente novamente.';
+		}
+	}
+
+	// ── View toggle ──────────────────────────────────────────────────────────────
 	const currentView = $derived(page.url.searchParams.get('view') ?? 'calendario');
 
 	function toggleView(v: string) {
@@ -45,6 +144,22 @@
 	// Modal de confirmação do fechamento
 	let showCloseModal = $state(false);
 	let closing = $state(false);
+	let cancelBtn = $state<HTMLButtonElement | null>(null);
+
+	// Focus cancel button when modal opens
+	$effect(() => {
+		if (showCloseModal && cancelBtn) cancelBtn.focus();
+	});
+
+	// Close modal on Escape
+	$effect(() => {
+		if (!showCloseModal) return;
+		function onKeydown(e: KeyboardEvent) {
+			if (e.key === 'Escape') showCloseModal = false;
+		}
+		window.addEventListener('keydown', onKeydown);
+		return () => window.removeEventListener('keydown', onKeydown);
+	});
 </script>
 
 <!-- ── Header ─────────────────────────────────────────────────────────────── -->
@@ -74,7 +189,7 @@
 		</div>
 
 		<!-- Ações do header -->
-		<div class="flex items-center gap-2">
+		<div class="flex flex-wrap items-center gap-2">
 			<!-- Toggle Calendário / Só pendentes -->
 			<div
 				class="flex rounded-lg border border-primary-100/70 p-0.5 text-sm dark:border-white/10"
@@ -117,7 +232,14 @@
 					</button>
 				</form>
 			{:else}
-				<div class="relative" title={!canClose ? `Faltam ${pendentes} apontamento(s)` : ''}>
+				<div
+					class="relative"
+					title={!canClose
+						? total === 0
+							? 'Nenhuma sessão neste mês'
+							: `Faltam ${pendentes} apontamento${pendentes !== 1 ? 's' : ''}`
+						: ''}
+				>
 					<button
 						onclick={() => (showCloseModal = true)}
 						disabled={!canClose}
@@ -138,7 +260,7 @@
 	<!-- Barra de progresso -->
 	<div class="space-y-1.5">
 		<div class="flex items-center justify-between text-xs text-ink-muted">
-			<span>
+			<span aria-live="polite" aria-atomic="true">
 				{apontadas} de {total} sessão{total !== 1 ? 'ões' : ''} apontada{apontadas !== 1 ? 's' : ''}
 				{#if pendentes > 0}
 					· <span class="font-medium text-amber-600 dark:text-amber-400">{pendentes} pendente{pendentes !== 1 ? 's' : ''}</span>
@@ -146,7 +268,7 @@
 					· <span class="font-medium text-emerald-600 dark:text-emerald-400">Tudo apontado</span>
 				{/if}
 			</span>
-			<span class="font-medium">{progressPct}%</span>
+			<span class="font-medium" aria-hidden="true">{progressPct}%</span>
 		</div>
 
 		<div
@@ -194,18 +316,35 @@
 			<p class="text-sm font-medium text-ink dark:text-bg">Nenhuma sessão neste mês</p>
 			<p class="text-xs text-ink-muted">Sessões canceladas não aparecem na fila de apontamento.</p>
 		</div>
+	{:else if currentView === 'calendario'}
+		<WeekCarousel
+			sessions={localSessions}
+			selectedMonth={data.selectedMonth}
+			isClosed={fechado}
+			onAppoint={handleAppoint}
+			onBulkAppoint={handleBulkAppoint}
+		/>
 	{:else}
-		<!-- Placeholder — visualização implementada na Fase 5 -->
-		<div
-			class="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-primary-200/70 py-20 text-center dark:border-white/10"
-		>
-			<p class="text-sm text-ink-muted">
-				Visualização {currentView === 'pendentes' ? '"Só pendentes"' : 'calendário'} — em construção
-			</p>
-			<p class="text-xs text-ink-muted/60">({total} sessões · {apontadas} apontadas · {pendentes} pendentes)</p>
-		</div>
+		<PendingList
+			sessions={localSessions}
+			isClosed={fechado}
+			onAppoint={handleAppoint}
+			onBulkAppoint={handleBulkAppoint}
+		/>
 	{/if}
 </div>
+
+<!-- ── Toast: erro de apontamento ─────────────────────────────────────────── -->
+{#if appointError}
+	<div
+		class="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 shadow-lg dark:border-red-800/40 dark:bg-red-900/20 dark:text-red-300"
+		role="alert"
+		aria-live="assertive"
+	>
+		<WarningCircle size={16} weight="fill" class="shrink-0" />
+		{appointError}
+	</div>
+{/if}
 
 <!-- ── Modal: confirmar fechamento ────────────────────────────────────────── -->
 {#if showCloseModal}
@@ -214,6 +353,9 @@
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="modal-title"
+		tabindex="-1"
+		onclick={(e) => { if (e.target === e.currentTarget) showCloseModal = false; }}
+		onkeydown={(e) => { if (e.key === 'Escape') showCloseModal = false; }}
 	>
 		<div class="w-full max-w-md rounded-2xl bg-bg p-6 shadow-xl dark:bg-bg-dark">
 			<h2 id="modal-title" class="mb-2 text-base font-semibold text-ink dark:text-bg">
@@ -226,6 +368,7 @@
 
 			<div class="flex justify-end gap-2">
 				<button
+					bind:this={cancelBtn}
 					onclick={() => (showCloseModal = false)}
 					class="rounded-lg px-4 py-2 text-sm text-ink-muted transition-colors hover:bg-primary-50/60 dark:hover:bg-white/5 dark:hover:text-bg"
 				>
